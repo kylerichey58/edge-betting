@@ -1411,7 +1411,7 @@ let mmBets = JSON.parse(localStorage.getItem('edge_mm_bets') || '{"bets":[],"ris
 let savedBets = JSON.parse(localStorage.getItem('edge_saved_bets') || '[]');
 
 // ─── TAB NAVIGATION ───
-function showTab(name) {
+window.showTab = function(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const tab = document.getElementById('tab-'+name);
