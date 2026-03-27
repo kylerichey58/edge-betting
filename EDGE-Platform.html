@@ -2790,14 +2790,13 @@ function pbRenderTrackerParlays() {
   if(typeof renderTracker === 'function') renderTracker();
 }
 
-// Init RR size checkboxes
+// Init RR size checkboxes and page startup
 document.addEventListener('DOMContentLoaded', () => {
   ['rr-2leg','rr-3leg','rr-4leg'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.addEventListener('change', pbUpdateRR);
   });
   pbRenderRRTracker();
-});
   if(_ki && _k) { _ki.value = _k; const _kl=document.getElementById('key-length'); if(_kl) _kl.textContent=_k.length; }
   updateApiKeyStatus();
   renderTracker();
@@ -2806,6 +2805,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initScoutDate();
   setTimeout(initCharts, 200);
   srRenderAll();
+});
 
 // ═══════════════════════════════════════════════════════
 // SCOUTING REPORT — Full logic
