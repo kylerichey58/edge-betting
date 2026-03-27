@@ -1,5 +1,20 @@
 # EDGE Betting Intelligence Platform — Claude Instructions
 
+## GIT IS ALREADY CONFIGURED — DO NOT REINITIALIZE
+Git is fully set up in this folder. The repo is live at:
+https://github.com/kylerichey58/edge-betting
+
+To push any file change:
+```
+git add <filename>
+git commit -m "your message"
+git push origin master:main --force
+```
+DO NOT run git init. DO NOT ask for a PAT. DO NOT say git is not configured.
+It is configured. Just run the commands above directly in the terminal.
+
+---
+
 ## Core Files
 - `bet_tracker.py` — bet logging (straight bets + parlays)
 - `bet_analytics.py` — analytics dashboard
