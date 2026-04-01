@@ -134,7 +134,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .alert.danger{background:var(--redfade);border:1px solid #ef444430;color:var(--red)}
 .alert.success{background:var(--greenfade);border:1px solid #22c55e30;color:var(--green)}
 .alert.info{background:var(--bluefade);border:1px solid #3b82f630;color:var(--blue)}
-/* METRIC CARDS FOR 8-METRIC */
+/* METRIC CARDS FOR 9-METRIC */
 .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:16px;position:relative}
 .metric-num{font-family:var(--font-mono);font-size:11px;color:var(--text3);margin-bottom:4px}
 .metric-name{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:1px;color:var(--text);margin-bottom:6px}
@@ -857,122 +857,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
-<!-- ═══════════════ 8-METRIC FRAMEWORK ═══════════════ -->
-<div id="tab-metrics" class="tab">
-  <div class="alert success" style="margin-bottom:20px">
-    <span>★</span>
-    <div><strong>Golden Rule:</strong> 5+ metrics pointing the same direction = highest-confidence play. Public Betting % (Metric 08) is most powerful when it CONTRADICTS the other 8 — that's where sharp money and model edge align.</div>
-  </div>
-
-  <div class="grid-2">
-    <div class="metric-card">
-      <div class="metric-num">METRIC 01 · HIGH WEIGHT</div>
-      <div class="metric-name">3-Point Percentage</div>
-      <div class="metric-weight"><span class="badge gold">SPREAD + TOTAL</span></div>
-      <div class="metric-desc">Predicts scoring variance and upset potential. Teams that control the arc control the pace of scoring. A team with elite 3PT% offense vs. a team that can't defend the arc is a recipe for an over.</div>
-      <div class="metric-threshold">
-        Elite Offense: &gt;38% | Elite Defense: &lt;28% allowed<br>
-        Flag: &gt;5% gap between teams
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: KenPom, ESPN, Sports Reference</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 02 · HIGH WEIGHT</div>
-      <div class="metric-name">Win % in Context</div>
-      <div class="metric-weight"><span class="badge gold">SPREAD + TOTAL</span></div>
-      <div class="metric-desc">Home/away record vs. similar opponents. A 15-2 team that is 1-4 on the road vs. ranked opponents is very different from what their record suggests. Recency matters.</div>
-      <div class="metric-threshold">
-        Road dog &gt;60% road win rate = value<br>
-        Home fav &lt;50% home win rate = fade
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: ESPN, Sports Reference schedule pages</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 03 · HIGH WEIGHT</div>
-      <div class="metric-name">Offensive Rebound Rate</div>
-      <div class="metric-weight"><span class="badge gold">SPREAD + TOTAL</span></div>
-      <div class="metric-desc">Second-chance points are among the most reliable predictors of over/under outcomes. High OffReb% teams consistently generate extra possessions that inflate scoring.</div>
-      <div class="metric-threshold">
-        &gt;35% OffReb = significant second-chance threat<br>
-        &lt;25% = limited extra possessions
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: KenPom, Sports Reference</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 04 · HIGH WEIGHT</div>
-      <div class="metric-name">Defensive Efficiency</div>
-      <div class="metric-weight"><span class="badge gold">SPREAD + TOTAL</span></div>
-      <div class="metric-desc">Points allowed per 100 possessions, adjusted for opponent strength. The single best predictor of low-scoring games and consistent covers. Elite D beats elite O in close games.</div>
-      <div class="metric-threshold">
-        Top 30 nationally = elite anchor<br>
-        Rank 150+ = exploitable | 50+ point gap = strong lean
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: KenPom adjusted defensive efficiency</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 05 · MED-HIGH WEIGHT · NEW</div>
-      <div class="metric-name">Pace & Tempo</div>
-      <div class="metric-weight"><span class="badge teal">TOTALS</span></div>
-      <div class="metric-desc">Possessions per 40 minutes. Tempo mismatches are consistently undervalued by the market. The slowest team almost always sets the pace — fast team visiting slow home team = UNDER lean.</div>
-      <div class="metric-threshold">
-        &gt;72 possessions = fast | &lt;65 = slow<br>
-        Gap &gt;5 = significant mismatch → factor into totals
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: KenPom Adj Tempo column</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 06 · MEDIUM WEIGHT · NEW</div>
-      <div class="metric-name">Free Throw Percentage</div>
-      <div class="metric-weight"><span class="badge blue">SPREAD</span></div>
-      <div class="metric-desc">Clutch games are won at the free throw line. Teams shooting below 65% FT% are a fade in close games. Becomes most important metric in the final 4 minutes of tight spreads.</div>
-      <div class="metric-threshold">
-        &gt;80% = reliable closer | &lt;65% = fade tight spreads<br>
-        High rate (&gt;25 attempts/game) = lean toward over
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: ESPN, Sports Reference team stats</div>
-    </div>
-    <div class="metric-card">
-      <div class="metric-num">METRIC 07 · MEDIUM WEIGHT · NEW</div>
-      <div class="metric-name">Bench Depth</div>
-      <div class="metric-weight"><span class="badge blue">SPREAD</span></div>
-      <div class="metric-desc">Points per game from bench/non-starters. Depth matters in foul trouble, back-to-backs, and rivalry games. Shallow benches collapse under late-game pressure.</div>
-      <div class="metric-threshold">
-        &gt;20 bench PPG = deep roster<br>
-        &lt;10 bench PPG = starter-dependent (vulnerable in foul trouble)
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: ESPN team stats pages</div>
-    </div>
-    <div class="metric-card" style="border-color:#f0b42940">
-      <div class="metric-num">METRIC 08 · MED-HIGH WEIGHT · NEW</div>
-      <div class="metric-name">Public Betting % — Sharp Signal</div>
-      <div class="metric-weight"><span class="badge gold">ALL BETS</span></div>
-      <div class="metric-desc">When the line moves AGAINST the public betting %, sharp/professional money is on the other side. That's where the value lives. Most powerful when it contradicts the other 8 metrics.</div>
-      <div class="metric-threshold">
-        &gt;70% public on one side = look at the other side<br>
-        Reverse line movement = sharp money signal
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: Action Network, ESPN BET</div>
-    </div>
-  </div>
-
-  <div class="section-header" style="margin-top:28px">Quick Reference</div>
-  <div class="card">
-    <table class="tbl">
-      <thead><tr><th>#</th><th>Metric</th><th>Key Threshold</th><th>Best Use</th><th>Weight</th><th>Find At</th></tr></thead>
-      <tbody>
-        <tr><td class="push">01</td><td>3PT%</td><td class="push">&gt;38% off / &lt;28% def</td><td>Scoring variance, totals</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom / ESPN</td></tr>
-        <tr><td class="push">02</td><td>Win% Context</td><td class="push">&gt;60% road win = value</td><td>Spread value</td><td><span class="badge red">HIGH</span></td><td class="push">ESPN / SR</td></tr>
-        <tr><td class="push">03</td><td>OffReb%</td><td class="push">&gt;35% = threat</td><td>Over/under lean</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom / SR</td></tr>
-        <tr><td class="push">04</td><td>DefEff</td><td class="push">Top 30 = elite anchor</td><td>Low-scoring games</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom</td></tr>
-        <tr><td class="push">05</td><td>Pace/Tempo</td><td class="push">Gap &gt;5 = mismatch</td><td>Totals (under lean)</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom</td></tr>
-        <tr><td class="push">06</td><td>FT%</td><td class="push">&lt;65% = fade close</td><td>Late-game spreads</td><td><span class="badge gray">MED</span></td><td class="push">ESPN / SR</td></tr>
-        <tr><td class="push">07</td><td>Bench Depth</td><td class="push">&lt;10 PPG = vulnerable</td><td>Foul trouble, rivalry</td><td><span class="badge gray">MED</span></td><td class="push">ESPN</td></tr>
-        <tr><td style="color:var(--gold)">08</td><td style="color:var(--gold)">Sharp Money</td><td class="push">&gt;70% public = flip</td><td>All bets — contrarian</td><td><span class="badge red">HIGH</span></td><td class="push">Action Network</td></tr>
-        <tr><td class="push">09</td><td>Recent Form</td><td class="push">Last 5 games ATS record + scoring trend</td><td>Tournament play</td><td><span class="badge red">HIGH</span></td><td class="push">ESPN / SR</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
 
 <!-- ═══════════════ LOG BET ═══════════════ -->
 <div id="tab-log" class="tab">
@@ -1942,13 +1826,7 @@ Required schema: {"injuries":[{"team":"str","player":"str","status":"str","impac
       const errMsg = data?.error?.message || `HTTP ${response.status}`;
       document.getElementById('scout-output').innerHTML += `<div style="color:var(--red);padding:12px;font-family:var(--font-mono);font-size:12px">⚠ API Error: ${errMsg}</div>`;
     }
-    // === EDGE DEBUG: paste these in browser console to diagnose ===
-    console.log('EDGE API status:', response.status);
-    console.log('EDGE stop_reason:', data.stop_reason);
-    console.log('EDGE content blocks:', data.content?.length, data.content?.map(c=>c.type));
-    console.log('EDGE error:', data.error);
     const textBlocks = (data.content||[]).filter(c=>c.type==='text');
-    console.log('EDGE text blocks:', textBlocks.length, textBlocks.map(c=>c.text?.slice(0,200)));
     // Filter to text blocks only — web_search adds tool_use/tool_result blocks
     const rawText = (data.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('');
     // Strip citation XML tags and markdown fences that web_search injects
@@ -2013,7 +1891,6 @@ function renderScout(d, matchup, spread, total, gameDate, ctxLabel, dk={}) {
     away: { ...(d.kenpom?.away || {}), ...userKenpom.away },
     home: { ...(d.kenpom?.home || {}), ...userKenpom.home }
   } : d.kenpom;
-  if(userKenpom) console.log('EDGE: Using user-entered KenPom data', userKenpom);
   const sim = runMonteCarlo(kenpomData, total, spread, scoutContext);
 
   // Auto-populate KenPom fields with AI-fetched values (if user hasn't filled them in)
@@ -2186,10 +2063,10 @@ function renderScout(d, matchup, spread, total, gameDate, ctxLabel, dk={}) {
       <div style="font-size:12px;color:var(--text2);margin-top:6px">${d.sharp?.signal||'Check DraftKings for current public money %.'}</div>
     </div>
 
-    <!-- 8-METRIC BREAKDOWN (collapsed by default) -->
+    <!-- 9-METRIC BREAKDOWN (collapsed by default) -->
     <div class="scout-section">
       <div class="scout-section-title" style="cursor:pointer;display:flex;justify-content:space-between" onclick="toggleMetrics()">
-        <span>8-Metric Breakdown</span>
+        <span>9-Metric Breakdown</span>
         <span id="metrics-toggle-icon" style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">▼ show</span>
       </div>
       <div id="metrics-detail" style="display:none;margin-top:8px">
@@ -3025,9 +2902,9 @@ function srBuildCard(g, rank) {
         </div>
       </div>
 
-      <!-- 8 METRICS -->
+      <!-- 9 METRICS -->
       <div style="margin-bottom:16px">
-        <div class="section-header" style="margin-top:0">8-Metric Breakdown</div>
+        <div class="section-header" style="margin-top:0">9-Metric Breakdown</div>
         <div class="grid-4" style="gap:8px">${metricsHtml}</div>
       </div>
 
