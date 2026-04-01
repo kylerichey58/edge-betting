@@ -2798,7 +2798,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(el) el.addEventListener('change', pbUpdateRR);
   });
   pbRenderRRTracker();
-  if(_ki && _k) { _ki.value = _k; const _kl=document.getElementById('key-length'); if(_kl) _kl.textContent=_k.length; }
+  const _ki = document.getElementById('api-key-input'); const _k = localStorage.getItem('edge_api_key') || ''; if(_ki && _k) { _ki.value = _k; const _kl=document.getElementById('key-length'); if(_kl) _kl.textContent=_k.length; }
   updateApiKeyStatus();
   renderTracker();
   renderBankroll();
