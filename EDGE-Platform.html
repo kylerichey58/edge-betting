@@ -3061,135 +3061,83 @@ function srToggle(id) {
 // ═══════════════════════════════════════════════════════
 
 function buildDashboard() {
-  const el = document.getElementById('dashboard-command-center');
-  if(!el) return;
+  const statGrid = document.getElementById('dash-stat-grid');
+  const cards    = document.getElementById('dash-sport-cards');
+  const rb       = document.getElementById('dash-recent-bets');
+  const pvEl     = document.getElementById('dash-portfolio-val');
 
-  // Compute live stats from BETS array
-  const straight = BETS.filter(b => b.type !== 'PARLAY');
+  // ── Compute stats ──
+  const graded   = BETS.filter(b => b.result === 'WIN' || b.result === 'LOSS' || b.result === 'PUSH');
+  const wins     = graded.filter(b => b.result === 'WIN').length;
+  const losses   = graded.filter(b => b.result === 'LOSS').length;
+  const pushes   = graded.filter(b => b.result === 'PUSH').length;
+  const total    = graded.length;
+  const gradedWL = graded.filter(b => b.result !== 'PUSH');
+  const winRate  = gradedWL.length ? (wins / gradedWL.length * 100).toFixed(1) : '0.0';
+
+  const netUnitsRaw = BETS.reduce((s,b) => s + b.pl, 0);
+  const netUnits    = netUnitsRaw.toFixed(2);
+  const netDollars  = (netUnitsRaw * 100).toFixed(0);
+  const unitRisked  = BETS.reduce((s,b) => s + b.units, 0).toFixed(1);
+  const roi         = parseFloat(unitRisked) ? ((netUnitsRaw / parseFloat(unitRisked)) * 100).toFixed(1) : '0.0';
+
   const totals   = BETS.filter(b => b.type === 'TOTAL');
   const spreads  = BETS.filter(b => b.type === 'SPREAD');
   const parlays  = BETS.filter(b => b.type === 'PARLAY');
 
-  const wr = arr => {
-    const graded = arr.filter(b => b.result === 'WIN' || b.result === 'LOSS');
-    return graded.length ? (graded.filter(b=>b.result==='WIN').length / graded.length * 100).toFixed(1) : '—';
-  };
-  const record = arr => {
-    const w = arr.filter(b=>b.result==='WIN').length;
-    const l = arr.filter(b=>b.result==='LOSS').length;
-    const p = arr.filter(b=>b.result==='PUSH').length;
-    return p ? `${w}W-${l}L-${p}P` : `${w}W-${l}L`;
-  };
-  const netPL = arr => arr.reduce((s,b)=>s+b.pl,0).toFixed(2);
-  const risked = arr => arr.reduce((s,b)=>s+b.units,0).toFixed(1);
-  const roi = arr => {
-    const r = parseFloat(risked(arr));
-    return r ? ((parseFloat(netPL(arr))/r)*100).toFixed(1) : '0.0';
-  };
+  const totalsGraded = totals.filter(b => b.result === 'WIN' || b.result === 'LOSS');
+  const totalsW      = totalsGraded.filter(b => b.result === 'WIN').length;
+  const totalsWR     = totalsGraded.length ? (totalsW / totalsGraded.length * 100).toFixed(1) : '0.0';
+  const totalsNet    = totals.reduce((s,b) => s + b.pl, 0);
+  const totalsRisked = totals.reduce((s,b) => s + b.units, 0);
+  const totalsROI    = totalsRisked ? ((totalsNet / totalsRisked) * 100).toFixed(1) : '0.0';
 
-  const totalNet = parseFloat(netPL(straight));
-  const totalRisked = parseFloat(risked(straight));
-  const totalROI = totalRisked ? ((totalNet/totalRisked)*100).toFixed(1) : '0.0';
-  const straightWR = wr(straight);
-  const totalsWR = wr(totals);
-  const betsGraded = straight.filter(b=>b.result==='WIN'||b.result==='LOSS'||b.result==='PUSH').length;
+  const spreadsGraded = spreads.filter(b => b.result === 'WIN' || b.result === 'LOSS');
+  const spreadsW      = spreadsGraded.filter(b => b.result === 'WIN').length;
+  const spreadsNet    = spreads.reduce((s,b) => s + b.pl, 0);
+  const spreadsRisked = spreads.reduce((s,b) => s + b.units, 0);
+  const spreadsROI    = spreadsRisked ? ((spreadsNet / spreadsRisked) * 100).toFixed(1) : '0.0';
 
-  const netColor = totalNet >= 0 ? 'var(--green)' : 'var(--red)';
-  const netSign = totalNet >= 0 ? '+' : '';
+  const parlaysGraded = parlays.filter(b => b.result === 'WIN' || b.result === 'LOSS');
+  const parlaysW      = parlaysGraded.filter(b => b.result === 'WIN').length;
+  const parlaysNet    = parlays.reduce((s,b) => s + b.pl, 0).toFixed(2);
 
-  el.innerHTML = `
-    <div class="alert warning" style="margin-bottom:16px">
-      <span>⚡</span>
-      <div><strong>Final Four begins April 4. UConn vs Illinois · Arizona vs Michigan · Indianapolis.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
-    </div>
+  // ── Stat grid ──
+  if(statGrid) {
+    const c1 = '<div class="stat-card green"><div class="stat-label">Overall Record</div><div class="stat-val green">'+wins+'W-'+losses+'L-'+pushes+'P</div><div class="stat-sub">'+winRate+'% win rate · '+total+' graded</div><div class="progress-bar" style="margin-top:8px"><div class="progress-fill" style="width:'+winRate+'%;background:var(--green)"></div></div></div>';
+    const c2 = '<div class="stat-card gold"><div class="stat-label">Net Units</div><div class="stat-val '+(parseFloat(netUnits)>=0?'green':'red')+'">'+(parseFloat(netUnits)>=0?'+':'')+netUnits+'u</div><div class="stat-sub" style="color:'+(parseFloat(netUnits)>=0?'var(--green)':'var(--red)')+'">$'+(parseFloat(netUnits)>=0?'+':'')+netDollars+' at $100/unit</div></div>';
+    const c3 = '<div class="stat-card teal"><div class="stat-label">Overall ROI</div><div class="stat-val '+(parseFloat(roi)>=0?'teal':'red')+'">'+(parseFloat(roi)>=0?'+':'')+roi+'%</div><div class="stat-sub">'+unitRisked+'u risked</div></div>';
+    const c4 = '<div class="stat-card gold"><div class="stat-label">Primary Edge</div><div class="stat-val teal">Totals</div><div class="stat-sub" style="color:var(--teal)">'+totalsWR+'% WR · '+(parseFloat(totalsROI)>=0?'+':'')+totalsROI+'% ROI</div></div>';
+    statGrid.innerHTML = c1+c2+c3+c4;
+  }
 
-    <div class="section-header">Command Center — Live Stats</div>
-    <div class="grid-4" style="margin-bottom:20px">
-      <div class="stat-card green">
-        <div class="stat-label">Overall Win Rate</div>
-        <div class="stat-val green">${straightWR}%</div>
-        <div class="stat-sub">${record(straight)} · ${betsGraded} graded</div>
-      </div>
-      <div class="stat-card gold">
-        <div class="stat-label">Net Units</div>
-        <div class="stat-val" style="color:${netColor}">${netSign}${totalNet}u</div>
-        <div class="stat-sub">${totalRisked}u risked · ${netSign}${totalROI}% ROI</div>
-      </div>
-      <div class="stat-card teal">
-        <div class="stat-label">Totals Win Rate</div>
-        <div class="stat-val teal">${totalsWR}%</div>
-        <div class="stat-sub">${record(totals)} — Primary Edge</div>
-      </div>
-      <div class="stat-card blue">
-        <div class="stat-label">Spreads Win Rate</div>
-        <div class="stat-val blue">${wr(spreads)}%</div>
-        <div class="stat-sub">${record(spreads)}</div>
-      </div>
-    </div>
+  // ── Sport cards ──
+  if(cards) {
+    const s1 = '<div class="stat-card" style="border-left:3px solid var(--gold);border-top:2px solid var(--gold)"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px">BASKETBALL</div><span class="badge green">Active</span></div><div style="font-family:var(--font-mono);font-size:18px;color:var(--teal);font-weight:600;margin-bottom:4px">'+wins+'W · '+losses+'L · '+pushes+'P</div><div style="font-size:11px;color:var(--text3);margin-bottom:10px">Net <span style="color:var(--teal)">'+(parseFloat(netUnits)>=0?'+':'')+netUnits+'u</span> · ROI <span style="color:'+(parseFloat(roi)>=0?'var(--teal)':'var(--red)')+'}">'+(parseFloat(roi)>=0?'+':'')+roi+'%</span></div><hr style="border:none;border-top:1px solid var(--border);margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:11px;margin:3px 0"><span style="color:var(--text3)">Totals</span><span style="font-family:var(--font-mono);color:'+(parseFloat(totalsNet)>=0?'var(--teal)':'var(--red)')+'">'+totalsW+'-'+(totals.length-totalsW)+' · '+(parseFloat(totalsROI)>=0?'+':'')+totalsROI+'%</span></div><div style="display:flex;justify-content:space-between;font-size:11px;margin:3px 0"><span style="color:var(--text3)">Spreads</span><span style="font-family:var(--font-mono);color:'+(parseFloat(spreadsNet)>=0?'var(--teal)':'var(--red)')+'">'+spreadsW+'-'+(spreads.length-spreadsW)+' · '+(parseFloat(spreadsROI)>=0?'+':'')+spreadsROI+'%</span></div><div style="display:flex;justify-content:space-between;font-size:11px;margin:3px 0"><span style="color:var(--text3)">Parlays</span><span style="font-family:var(--font-mono);color:'+(parseFloat(parlaysNet)>=0?'var(--teal)':'var(--red)')+'">'+parlaysW+'-'+(parlays.length-parlaysW)+' · '+(parseFloat(parlaysNet)>=0?'+':'')+parlaysNet+'u</span></div></div>';
+    const s2 = '<div class="stat-card" style="opacity:0.4"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px">BASEBALL</div><span class="badge gold">Summer 2026</span></div><div style="font-family:var(--font-mono);font-size:18px;color:var(--text3);margin-bottom:4px">—</div><div style="font-size:11px;color:var(--text3)">MLB · Run lines · Totals · ML</div></div>';
+    const s3 = '<div class="stat-card" style="opacity:0.4"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px">FOOTBALL</div><span class="badge gold">Fall 2026</span></div><div style="font-family:var(--font-mono);font-size:18px;color:var(--text3);margin-bottom:4px">—</div><div style="font-size:11px;color:var(--text3)">NFL · NCAAF · Spreads · Props</div></div>';
+    const s4 = '<div class="stat-card" style="border-left:3px solid #a78bfa;border-top:2px solid #a78bfa44"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div style="font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:1px;color:#a78bfa">HORSE RACING</div><span class="badge" style="background:#1a0e22;color:#a78bfa;border:1px solid #a78bfa44">Building</span></div><div style="font-family:var(--font-mono);font-size:18px;color:#a78bfa;margin-bottom:4px">Wing</div><div style="font-size:11px;color:#6b46c1">Own tab · Own schema · Own tracker</div></div>';
+    cards.innerHTML = s1+s2+s3+s4;
+  }
 
-    <div class="grid-2" style="margin-bottom:20px">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">P/L Trend — All Bets</div>
-          <div class="badge teal">Live</div>
-        </div>
-        <div class="chart-wrap" style="height:200px">
-          <canvas id="plChart"></canvas>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Win Rate by Bet Type</div>
-        </div>
-        <div class="chart-wrap" style="height:200px">
-          <canvas id="typeChart"></canvas>
-        </div>
-      </div>
-    </div>
+  // ── Portfolio badge ──
+  if(pvEl) {
+    pvEl.textContent = (parseFloat(netUnits)>=0?'+':'')+netUnits+'u';
+    pvEl.className = 'badge '+(parseFloat(netUnits)>=0?'green':'red');
+  }
 
-    <div class="grid-3" style="margin-bottom:20px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">By Confidence Level</div></div>
-        <table class="tbl">
-          <thead><tr><th>Stars</th><th class="right">Record</th><th class="right">ROI</th></tr></thead>
-          <tbody id="dashboard-star-rows"></tbody>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Bet Type Breakdown</div></div>
-        <table class="tbl">
-          <thead><tr><th>Type</th><th class="right">Record</th><th class="right">WR%</th><th class="right">ROI</th></tr></thead>
-          <tbody>
-            <tr><td class="win">TOTAL</td><td class="right">${record(totals)}</td><td class="right win">${totalsWR}%</td><td class="right win">${roi(totals)}%</td></tr>
-            <tr><td>SPREAD</td><td class="right">${record(spreads)}</td><td class="right">${wr(spreads)}%</td><td class="right">${roi(spreads)}%</td></tr>
-            <tr><td class="loss">PARLAY</td><td class="right">${record(parlays)}</td><td class="right loss">${wr(parlays)}%</td><td class="right loss">${roi(parlays)}%</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Rules Reminder</div></div>
-        <div style="font-size:12px;color:var(--text2);line-height:1.8">
-          <div>✅ 6+ metrics aligned = high-confidence</div>
-          <div>✅ Totals-first — ${totalsWR}% WR</div>
-          <div>✅ Pace/Tempo gap >5 = bet slower pace</div>
-          <div>⚠️ 3-star bets — tighten criteria</div>
-          <div style="color:var(--red)">❌ ML parlay legs — 0% hit rate</div>
-          <div style="color:var(--red)">❌ Never automate — manual only</div>
-        </div>
-      </div>
-    </div>`;
-
-  // Fill star rows
-  const tbody = document.getElementById('dashboard-star-rows');
-  if(tbody) {
-    [4,3,2].forEach(s => {
-      const grp = straight.filter(b=>b.stars===s);
-      if(!grp.length) return;
-      const r = roi(grp);
-      const color = parseFloat(r)>=0 ? 'var(--green)' : 'var(--red)';
-      const cls = parseFloat(r)>=0 ? 'win' : 'loss';
-      tbody.innerHTML += `<tr><td><span class="stars">${'★'.repeat(s)}</span></td><td class="right">${record(grp)}</td><td class="right ${cls}">${r}%</td></tr>`;
-    });
+  // ── Recent bets ──
+  if(rb) {
+    const recent = BETS.slice(-8).reverse();
+    if(!recent.length) {
+      rb.innerHTML = '<div style="color:var(--text3);text-align:center;padding:30px 0;font-family:var(--font-mono);font-size:11px">No bets logged yet.</div>';
+    } else {
+      rb.innerHTML = recent.map(function(b) {
+        var plStr = b.pl > 0 ? '+'+b.pl.toFixed(2)+'u' : b.pl.toFixed(2)+'u';
+        var plColor = b.result==='WIN'?'var(--green)':b.result==='LOSS'?'var(--red)':'var(--text3)';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:12px;color:var(--text)">'+b.game+'</div><div style="font-size:10px;color:var(--text3);font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">'+b.sport+' · '+b.type+' · '+b.odds+'</div></div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:'+plColor+'">'+plStr+'</div></div>';
+      }).join('');
+    }
   }
 }
 
