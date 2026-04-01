@@ -298,8 +298,29 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div id="tab-dashboard" class="tab active">
-  <div id="dashboard-command-center">
-    <!-- Populated by buildDashboard() -->
+  <div class="section-header" style="margin-top:0">Command Center — All Sports</div>
+  <div class="grid-4" id="dash-stat-grid" style="margin-bottom:20px"></div>
+  <div class="section-header">Sport Rooms</div>
+  <div class="grid-4" id="dash-sport-cards" style="margin-bottom:20px"></div>
+  <div class="grid-2" style="margin-bottom:20px">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Unit Portfolio</div>
+        <div id="dash-portfolio-val" class="badge green"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px;font-family:var(--font-mono)">Running units across all graded bets · 1 unit = $100</div>
+      <div class="chart-wrap" style="height:180px;position:relative">
+        <canvas id="portfolioChart"></canvas>
+      </div>
+      <div id="dash-portfolio-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);text-align:center"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Recent Bets</div>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text3)">All sports</span>
+      </div>
+      <div id="dash-recent-bets"></div>
+    </div>
   </div>
 </div>
 
