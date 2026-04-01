@@ -15,7 +15,7 @@
   <!-- Apple touch icon (home screen icon) -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0f' rx='20'/><text y='72' x='50' text-anchor='middle' font-size='65' font-family='Arial Black' fill='%23f0c040'>E</text></svg>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EDGE — Betting Intelligence Platform v2.1</title>
+<title>EDGE Intelligence Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
@@ -256,31 +256,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <!-- TOP BAR -->
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:16px">
-    <div class="logo">EDGE <span>BETTING INTELLIGENCE</span></div>
-    <div class="phase-badge">PHASE 8 UNLOCKED</div>
+    <div class="logo">EDGE <span>INTELLIGENCE PLATFORM</span></div>
   </div>
-  <div class="topbar-stats">
-    <div class="ts-item">
-      <div class="ts-val green">33W-24L-1P</div>
-      <div class="ts-label">Straight Record</div>
-    </div>
-    <div class="ts-item">
-      <div class="ts-val gold">57.9%</div>
-      <div class="ts-label">Win Rate</div>
-    </div>
-    <div class="ts-item">
-      <div class="ts-val green">+2.82u</div>
-      <div class="ts-label">Net Units</div>
-    </div>
-    <div class="ts-item">
-      <div class="ts-val green">65.2%</div>
-      <div class="ts-label">Totals WR</div>
-    </div>
-    <div class="ts-item">
-      <div class="ts-val gold">4.4%</div>
-      <div class="ts-label">ROI</div>
-    </div>
-  </div>
+  <div class="topbar-stats" id="topbar-live-stats"></div>
   <div class="topbar-right">
     <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3)"><span id="edge-date"></span></div>
     <button onclick="toggleSettings()" title="API Settings" style="background:transparent;border:1px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--text3);cursor:pointer;font-size:14px;margin-left:8px">⚙</button>
@@ -301,15 +279,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 <!-- TICKER -->
-<div class="ticker-bar">
-  <div class="ticker-item">TOTALS <span class="t-green">15W-8L</span> <span class="t-gold">65.2% WR</span></div>
-  <div class="ticker-item">SPREADS <span class="t-green">17W-12L</span> <span style="color:var(--text3)">58.6% WR</span></div>
-  <div class="ticker-item">ML LEGS <span class="t-red">AVOID — 0% HIT RATE</span></div>
-  <div class="ticker-item">SIZING <span class="t-gold">0.5–1.0u tier leading at +19.4% ROI</span></div>
-  <div class="ticker-item">PARLAYS <span class="t-green">ACTIVE</span></div>
-  <div class="ticker-item">FINAL FOUR <span class="t-gold">TOTALS FIRST</span></div>
-  <div class="ticker-item">BETS GRADED <span class="t-green">68 TOTAL</span></div>
-</div>
+<div class="ticker-bar" id="live-ticker"></div>
 
 <!-- NAV -->
 <div class="nav">
@@ -320,6 +290,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nav-btn" onclick="showTab('log')">Log Bet</button>
   <button class="nav-btn" onclick="showTab('tracker')">Bet Tracker</button>
   <button class="nav-btn" onclick="showTab('bankroll')">Bankroll</button>
+  <button class="nav-btn" onclick="showTab('horseracing')">🏇 Horse Racing</button>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -327,126 +298,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <!-- ═══════════════ DASHBOARD ═══════════════ -->
 <div id="tab-dashboard" class="tab active">
-  <div class="alert warning">
-    <span>⚡</span>
-    <div><strong>Final Four begins April 4. UConn vs Illinois · Arizona vs Michigan · Indianapolis.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
-  </div>
-
-  <div class="section-header">Performance Overview</div>
-  <div class="grid-4" style="margin-bottom:20px">
-    <div class="stat-card green">
-      <div class="stat-label">Straight Win Rate</div>
-      <div class="stat-val green">57.9%</div>
-      <div class="stat-sub">33W · 24L · 1P</div>
-    </div>
-    <div class="stat-card gold">
-      <div class="stat-label">Net Units</div>
-      <div class="stat-val green">+2.82u</div>
-      <div class="stat-sub">64.2u risked</div>
-    </div>
-    <div class="stat-card teal">
-      <div class="stat-label">Totals Win Rate</div>
-      <div class="stat-val teal">65.2%</div>
-      <div class="stat-sub">15W · 8L — Primary Edge</div>
-    </div>
-    <div class="stat-card gold">
-      <div class="stat-label">ROI (Straight)</div>
-      <div class="stat-val gold">4.4%</div>
-      <div class="stat-sub">vs. 5–8% industry avg</div>
-    </div>
-  </div>
-
-  <div class="grid-2" style="margin-bottom:20px">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">P/L Trend — All 58 Bets</div>
-        <div class="badge teal">Live</div>
-      </div>
-      <div class="chart-wrap" style="height:200px">
-        <canvas id="plChart"></canvas>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Win Rate by Bet Type</div>
-      </div>
-      <div class="chart-wrap" style="height:200px">
-        <canvas id="typeChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <div class="grid-3" style="margin-bottom:20px">
-    <div class="card">
-      <div class="card-header"><div class="card-title">By Confidence Level</div></div>
-      <table class="tbl">
-        <thead><tr><th>Stars</th><th class="right">Record</th><th class="right">Win%</th><th class="right">ROI</th></tr></thead>
-        <tbody>
-          <tr><td><span class="stars">★★★★★</span></td><td class="right">1W-1L</td><td class="right" style="color:var(--gold)">50.0%</td><td class="right push">0.0%</td></tr>
-          <tr><td><span class="stars">★★★★</span></td><td class="right win">26W-15L</td><td class="right win">63.4%</td><td class="right win">+17.3%</td></tr>
-          <tr><td><span class="stars">★★★</span></td><td class="right" style="color:var(--red)">6W-8L-1P</td><td class="right loss">42.9%</td><td class="right loss">-33.7%</td></tr>
-        </tbody>
-      </table>
-      <div class="alert info" style="margin-top:12px;margin-bottom:0;padding:10px 12px;font-size:12px">
-        <span>→</span> 4-star plays are your edge. 3-star is a leak at -33.7% ROI. Be more selective at 3-star or skip.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">Unit Sizing Analysis</div></div>
-      <table class="tbl">
-        <thead><tr><th>Size</th><th class="right">Record</th><th class="right">Win%</th><th class="right">ROI</th></tr></thead>
-        <tbody>
-          <tr><td class="win">0.5–1.0u</td><td class="right">26W-15L</td><td class="right win">63.4%</td><td class="right win">+19.4%</td></tr>
-          <tr><td class="loss">1.1–2.0u</td><td class="right">4W-7L-1P</td><td class="right loss">36.4%</td><td class="right loss">-27.9%</td></tr>
-          <tr><td class="push">2.1–3.0u</td><td class="right">3W-2L</td><td class="right gold">60.0%</td><td class="right gold">+14.7%</td></tr>
-        </tbody>
-      </table>
-      <div class="alert danger" style="margin-top:12px;margin-bottom:0;padding:10px 12px;font-size:12px">
-        <span>⚠</span> 1.1–2.0u tier is now NEGATIVE. Late-session bets 53–58 at -5 losses sized 1.5–2.25u caused the reversal. Reset to 0.75–1.0u base until win rate recovers.
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">Parlay Status</div></div>
-      <div style="text-align:center;padding:12px 0">
-        <div style="font-family:var(--font-mono);font-size:36px;color:var(--red);margin-bottom:4px">-89.6%</div>
-        <div style="font-size:11px;color:var(--text3);letter-spacing:1px;margin-bottom:16px">PARLAY ROI — 1W-9L</div>
-        <div class="badge green" style="font-size:12px;padding:6px 16px">ACTIVE — SPREAD LEGS ONLY</div>
-      </div>
-      <hr class="rule">
-      <div style="font-size:12px;color:var(--text2);line-height:1.7">
-        <div>SPREAD legs: 5W-5L (50%) ⚠️ Monitor</div>
-        <div>TOTAL legs: 8W-8L (50%) ⚠️ Monitor</div>
-        <div style="color:var(--red)">ML legs: 0W-1L (0%) ❌ Never use</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section-header">Model Milestones</div>
-  <div class="grid-4">
-    <div class="stat-card green">
-      <div class="stat-label">10 Bets</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--green);margin-top:6px">✓ COMPLETE</div>
-      <div class="stat-sub">Analytics dashboard</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-label">25 Bets</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--green);margin-top:6px">✓ COMPLETE</div>
-      <div class="stat-sub">EDGE web platform</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
-    </div>
-    <div class="stat-card green">
-      <div class="stat-label">50 Bets</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--green);margin-top:6px">✓ COMPLETE</div>
-      <div class="stat-sub">Phase 8 — Advanced model</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:100%;background:var(--green)"></div></div>
-    </div>
-    <div class="stat-card gold">
-      <div class="stat-label">60 Bets</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--gold);margin-top:6px">8 away</div>
-      <div class="stat-sub">Parlay resume checkpoint</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:86%;background:var(--gold)"></div></div>
-    </div>
+  <div id="dashboard-command-center">
+    <!-- Populated by buildDashboard() -->
   </div>
 </div>
 
@@ -1265,6 +1118,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
 <!-- ═══════════════ BANKROLL ═══════════════ -->
 <div id="tab-bankroll" class="tab">
+  <!-- Bankroll summary stats (kept for renderBankroll compatibility) -->
   <div class="grid-4" style="margin-bottom:20px">
     <div class="stat-card gold">
       <div class="stat-label">Current Balance</div>
@@ -1288,7 +1142,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
 
-  <div class="grid-2" style="align-items:start">
+  <!-- Daily Ledger -->
+  <div id="daily-ledger-container">
+    <!-- Populated by buildLedger() -->
+  </div>
+
+  <div class="grid-2" style="align-items:start;margin-top:20px">
     <div>
       <div class="card" style="margin-bottom:16px">
         <div class="card-header">
@@ -1320,7 +1179,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         </div>
         <div class="form-group">
           <label class="form-label">Note</label>
-          <input class="form-input" id="br-txn-note" placeholder="e.g. March Madness reload" />
+          <input class="form-input" id="br-txn-note" placeholder="e.g. Final Four reload" />
         </div>
         <button class="btn primary" onclick="logTransaction()" style="width:100%">Log Transaction</button>
       </div>
@@ -1335,6 +1194,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   </div>
 </div>
 
+
+<!-- ═══════════════ HORSE RACING ═══════════════ -->
+<div id="tab-horseracing" class="tab">
+  <div class="alert info" style="margin-bottom:20px">
+    <span>🏇</span>
+    <div>
+      <strong>Horse Racing — Coming Soon.</strong> Track analysis, ROI by race type, and metric framework expansion planned for summer 2026.
+    </div>
+  </div>
+  <div class="grid-4">
+    <div class="stat-card gold">
+      <div class="stat-label">Status</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--gold);margin-top:6px">PLANNED</div>
+      <div class="stat-sub">Summer 2026</div>
+    </div>
+    <div class="stat-card teal">
+      <div class="stat-label">Primary Edge</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--teal,#2dd4bf);margin-top:6px">ROI BY RACE TYPE</div>
+      <div class="stat-sub">Track + distance filters</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-label">Approach</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--blue);margin-top:6px">METRIC BUILD</div>
+      <div class="stat-sub">Pace + form + class</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Data Source</div>
+      <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);margin-top:6px">TBD</div>
+      <div class="stat-sub">API integration pending</div>
+    </div>
+  </div>
+</div>
 
 </div><!-- /main -->
 </div><!-- /app -->
@@ -1422,8 +1313,9 @@ window.showTab = function(name) {
   if(tab) tab.classList.add('active');
   const btns = document.querySelectorAll('.nav-btn');
   btns.forEach(b => { if(b.textContent.toLowerCase().replace(/ /g,'').includes(name.replace(/-/g,''))) b.classList.add('active'); });
-  // Init charts on dashboard
-  if(name === 'dashboard') setTimeout(initCharts, 100);
+  // Init charts and dynamic content on tab switch
+  if(name === 'dashboard') { buildDashboard(); setTimeout(initCharts, 100); }
+  if(name === 'bankroll') buildLedger();
 }
 
 // ─── CHARTS ───
@@ -2806,9 +2698,9 @@ document.addEventListener('DOMContentLoaded', () => {
   updateApiKeyStatus();
   renderTracker();
   renderBankroll();
-  if(typeof renderMMTracker === 'function') renderMMTracker();
+  buildLedger();
   initScoutDate();
-  setTimeout(initCharts, 200);
+  setTimeout(()=>{ buildDashboard(); buildTopbarStats(); buildTicker(); initCharts(); }, 200);
   srRenderAll();
 });
 
@@ -3139,6 +3031,266 @@ function srToggle(id) {
   if(icon) icon.style.transform = open ? '' : 'rotate(180deg)';
   if(icon) icon.style.color = open ? 'var(--text3)' : 'var(--gold)';
 }
+
+// ═══════════════════════════════════════════════════════
+// DYNAMIC DASHBOARD ENGINE
+// ═══════════════════════════════════════════════════════
+
+function buildDashboard() {
+  const el = document.getElementById('dashboard-command-center');
+  if(!el) return;
+
+  // Compute live stats from BETS array
+  const straight = BETS.filter(b => b.type !== 'PARLAY');
+  const totals   = BETS.filter(b => b.type === 'TOTAL');
+  const spreads  = BETS.filter(b => b.type === 'SPREAD');
+  const parlays  = BETS.filter(b => b.type === 'PARLAY');
+
+  const wr = arr => {
+    const graded = arr.filter(b => b.result === 'WIN' || b.result === 'LOSS');
+    return graded.length ? (graded.filter(b=>b.result==='WIN').length / graded.length * 100).toFixed(1) : '—';
+  };
+  const record = arr => {
+    const w = arr.filter(b=>b.result==='WIN').length;
+    const l = arr.filter(b=>b.result==='LOSS').length;
+    const p = arr.filter(b=>b.result==='PUSH').length;
+    return p ? `${w}W-${l}L-${p}P` : `${w}W-${l}L`;
+  };
+  const netPL = arr => arr.reduce((s,b)=>s+b.pl,0).toFixed(2);
+  const risked = arr => arr.reduce((s,b)=>s+b.units,0).toFixed(1);
+  const roi = arr => {
+    const r = parseFloat(risked(arr));
+    return r ? ((parseFloat(netPL(arr))/r)*100).toFixed(1) : '0.0';
+  };
+
+  const totalNet = parseFloat(netPL(straight));
+  const totalRisked = parseFloat(risked(straight));
+  const totalROI = totalRisked ? ((totalNet/totalRisked)*100).toFixed(1) : '0.0';
+  const straightWR = wr(straight);
+  const totalsWR = wr(totals);
+  const betsGraded = straight.filter(b=>b.result==='WIN'||b.result==='LOSS'||b.result==='PUSH').length;
+
+  const netColor = totalNet >= 0 ? 'var(--green)' : 'var(--red)';
+  const netSign = totalNet >= 0 ? '+' : '';
+
+  el.innerHTML = `
+    <div class="alert warning" style="margin-bottom:16px">
+      <span>⚡</span>
+      <div><strong>Final Four begins April 4. UConn vs Illinois · Arizona vs Michigan · Indianapolis.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
+    </div>
+
+    <div class="section-header">Command Center — Live Stats</div>
+    <div class="grid-4" style="margin-bottom:20px">
+      <div class="stat-card green">
+        <div class="stat-label">Overall Win Rate</div>
+        <div class="stat-val green">${straightWR}%</div>
+        <div class="stat-sub">${record(straight)} · ${betsGraded} graded</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-label">Net Units</div>
+        <div class="stat-val" style="color:${netColor}">${netSign}${totalNet}u</div>
+        <div class="stat-sub">${totalRisked}u risked · ${netSign}${totalROI}% ROI</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-label">Totals Win Rate</div>
+        <div class="stat-val teal">${totalsWR}%</div>
+        <div class="stat-sub">${record(totals)} — Primary Edge</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Spreads Win Rate</div>
+        <div class="stat-val blue">${wr(spreads)}%</div>
+        <div class="stat-sub">${record(spreads)}</div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">P/L Trend — All Bets</div>
+          <div class="badge teal">Live</div>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="plChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Win Rate by Bet Type</div>
+        </div>
+        <div class="chart-wrap" style="height:200px">
+          <canvas id="typeChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><div class="card-title">By Confidence Level</div></div>
+        <table class="tbl">
+          <thead><tr><th>Stars</th><th class="right">Record</th><th class="right">ROI</th></tr></thead>
+          <tbody id="dashboard-star-rows"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Bet Type Breakdown</div></div>
+        <table class="tbl">
+          <thead><tr><th>Type</th><th class="right">Record</th><th class="right">WR%</th><th class="right">ROI</th></tr></thead>
+          <tbody>
+            <tr><td class="win">TOTAL</td><td class="right">${record(totals)}</td><td class="right win">${totalsWR}%</td><td class="right win">${roi(totals)}%</td></tr>
+            <tr><td>SPREAD</td><td class="right">${record(spreads)}</td><td class="right">${wr(spreads)}%</td><td class="right">${roi(spreads)}%</td></tr>
+            <tr><td class="loss">PARLAY</td><td class="right">${record(parlays)}</td><td class="right loss">${wr(parlays)}%</td><td class="right loss">${roi(parlays)}%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Rules Reminder</div></div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.8">
+          <div>✅ 6+ metrics aligned = high-confidence</div>
+          <div>✅ Totals-first — ${totalsWR}% WR</div>
+          <div>✅ Pace/Tempo gap >5 = bet slower pace</div>
+          <div>⚠️ 3-star bets — tighten criteria</div>
+          <div style="color:var(--red)">❌ ML parlay legs — 0% hit rate</div>
+          <div style="color:var(--red)">❌ Never automate — manual only</div>
+        </div>
+      </div>
+    </div>`;
+
+  // Fill star rows
+  const tbody = document.getElementById('dashboard-star-rows');
+  if(tbody) {
+    [4,3,2].forEach(s => {
+      const grp = straight.filter(b=>b.stars===s);
+      if(!grp.length) return;
+      const r = roi(grp);
+      const color = parseFloat(r)>=0 ? 'var(--green)' : 'var(--red)';
+      const cls = parseFloat(r)>=0 ? 'win' : 'loss';
+      tbody.innerHTML += `<tr><td><span class="stars">${'★'.repeat(s)}</span></td><td class="right">${record(grp)}</td><td class="right ${cls}">${r}%</td></tr>`;
+    });
+  }
+}
+
+// ─── TOPBAR LIVE STATS ───
+function buildTopbarStats() {
+  const el = document.getElementById('topbar-live-stats');
+  if(!el) return;
+  const straight = BETS.filter(b => b.type !== 'PARLAY');
+  const totals   = BETS.filter(b => b.type === 'TOTAL');
+  const graded   = straight.filter(b=>b.result==='WIN'||b.result==='LOSS'||b.result==='PUSH');
+  const wins     = graded.filter(b=>b.result==='WIN').length;
+  const losses   = graded.filter(b=>b.result==='LOSS').length;
+  const pushes   = graded.filter(b=>b.result==='PUSH').length;
+  const wr       = graded.length ? (wins/graded.length*100).toFixed(1) : '0.0';
+  const net      = straight.reduce((s,b)=>s+b.pl,0).toFixed(2);
+  const risked   = straight.reduce((s,b)=>s+b.units,0);
+  const roiVal   = risked ? ((parseFloat(net)/risked)*100).toFixed(1) : '0.0';
+  const tGraded  = totals.filter(b=>b.result==='WIN'||b.result==='LOSS');
+  const tWR      = tGraded.length ? (tGraded.filter(b=>b.result==='WIN').length/tGraded.length*100).toFixed(1) : '0.0';
+  const recStr   = pushes ? `${wins}W-${losses}L-${pushes}P` : `${wins}W-${losses}L`;
+  const netColor = parseFloat(net)>=0 ? 'var(--green)' : 'var(--red)';
+  const netSign  = parseFloat(net)>=0 ? '+' : '';
+
+  el.innerHTML = `
+    <div class="ts-item"><div class="ts-val green">${recStr}</div><div class="ts-label">Straight Record</div></div>
+    <div class="ts-item"><div class="ts-val gold">${wr}%</div><div class="ts-label">Win Rate</div></div>
+    <div class="ts-item"><div class="ts-val" style="color:${netColor}">${netSign}${net}u</div><div class="ts-label">Net Units</div></div>
+    <div class="ts-item"><div class="ts-val green">${tWR}%</div><div class="ts-label">Totals WR</div></div>
+    <div class="ts-item"><div class="ts-val gold">${netSign}${roiVal}%</div><div class="ts-label">ROI</div></div>`;
+}
+
+// ─── LIVE TICKER ───
+function buildTicker() {
+  const el = document.getElementById('live-ticker');
+  if(!el) return;
+  const straight = BETS.filter(b => b.type !== 'PARLAY');
+  const totals   = BETS.filter(b => b.type === 'TOTAL');
+  const spreads  = BETS.filter(b => b.type === 'SPREAD');
+  const parlays  = BETS.filter(b => b.type === 'PARLAY');
+
+  const rec = arr => {
+    const w=arr.filter(b=>b.result==='WIN').length, l=arr.filter(b=>b.result==='LOSS').length;
+    const p=arr.filter(b=>b.result==='PUSH').length;
+    return p?`${w}W-${l}L-${p}P`:`${w}W-${l}L`;
+  };
+  const wr = arr => {
+    const g=arr.filter(b=>b.result==='WIN'||b.result==='LOSS');
+    return g.length?(g.filter(b=>b.result==='WIN').length/g.length*100).toFixed(1):'0.0';
+  };
+  const net = straight.reduce((s,b)=>s+b.pl,0).toFixed(2);
+  const tWR = wr(totals); const sWR = wr(spreads);
+  const netSign = parseFloat(net)>=0?'+':'';
+  const betsGraded = straight.filter(b=>b.result!=='').length;
+
+  const items = [
+    `TOTALS <span class="t-green">${rec(totals)}</span> <span class="t-gold">${tWR}% WR</span>`,
+    `SPREADS <span class="t-green">${rec(spreads)}</span> <span style="color:var(--text3)">${sWR}% WR</span>`,
+    `ML LEGS <span class="t-red">AVOID — 0% HIT RATE</span>`,
+    `NET UNITS <span class="${parseFloat(net)>=0?'t-green':'t-red'}">${netSign}${net}u</span>`,
+    `PARLAYS <span class="t-green">ACTIVE</span>`,
+    `FINAL FOUR <span class="t-gold">TOTALS FIRST</span>`,
+    `BETS GRADED <span class="t-green">${betsGraded} TOTAL</span>`,
+  ];
+  el.innerHTML = items.map(i=>`<div class="ticker-item">${i}</div>`).join('');
+}
+
+// ─── DAILY LEDGER ───
+function buildLedger() {
+  const el = document.getElementById('daily-ledger-container');
+  if(!el) return;
+
+  // Group BETS by date — use stored log dates if available, else group sequentially
+  const dayMap = {};
+  BETS.forEach(b => {
+    const day = b.date || 'Unlogged';
+    if(!dayMap[day]) dayMap[day] = [];
+    dayMap[day].push(b);
+  });
+
+  const days = Object.keys(dayMap).reverse();
+  if(!days.length || (days.length===1 && days[0]==='Unlogged')) {
+    el.innerHTML = `<div class="card"><div style="color:var(--text3);text-align:center;padding:40px 0;font-family:var(--font-mono);font-size:12px">No daily log data. Bets logged via tracker will appear here grouped by date.</div></div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="section-header">Daily Ledger</div>` + days.map(day => {
+    const bets = dayMap[day];
+    const net = bets.reduce((s,b)=>s+b.pl,0).toFixed(2);
+    const wins = bets.filter(b=>b.result==='WIN').length;
+    const losses = bets.filter(b=>b.result==='LOSS').length;
+    const netColor = parseFloat(net)>=0?'var(--green)':'var(--red)';
+    const netSign = parseFloat(net)>=0?'+':'';
+    return `
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="cursor:pointer" onclick="toggleLedgerDay('${day}')">
+          <div class="card-title">${day}</div>
+          <div style="display:flex;gap:16px;align-items:center;font-family:var(--font-mono);font-size:12px">
+            <span>${wins}W-${losses}L</span>
+            <span style="color:${netColor}">${netSign}${net}u</span>
+            <span style="color:var(--text3)">▾</span>
+          </div>
+        </div>
+        <div id="ledger-day-${day.replace(/\s/g,'-')}" style="display:none">
+          <table class="tbl" style="margin-top:8px">
+            <thead><tr><th>Game</th><th>Pick</th><th class="right">Units</th><th class="right">Result</th><th class="right">P/L</th></tr></thead>
+            <tbody>
+              ${bets.map(b=>`<tr>
+                <td style="font-size:11px">${b.game}</td>
+                <td style="font-size:11px">${b.pick}</td>
+                <td class="right">${b.units}u</td>
+                <td class="right ${b.result==='WIN'?'win':b.result==='LOSS'?'loss':'push'}">${b.result}</td>
+                <td class="right ${b.pl>=0?'win':'loss'}">${b.pl>=0?'+':''}${b.pl}u</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleLedgerDay(day) {
+  const el = document.getElementById('ledger-day-'+day.replace(/\s/g,'-'));
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 </script>
 </body>
 </html>
