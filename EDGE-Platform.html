@@ -304,7 +304,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="ticker-item">ML LEGS <span class="t-red">AVOID — 0% HIT RATE</span></div>
   <div class="ticker-item">SIZING <span class="t-gold">0.5–1.0u tier leading at +19.4% ROI</span></div>
   <div class="ticker-item">PARLAYS <span class="t-green">ACTIVE</span></div>
-  <div class="ticker-item">MARCH MADNESS <span class="t-gold">STARTS MAR 20 — TOTALS FIRST</span></div>
+  <div class="ticker-item">FINAL FOUR <span class="t-gold">TOTALS FIRST</span></div>
   <div class="ticker-item">BETS GRADED <span class="t-green">68 TOTAL</span></div>
 </div>
 
@@ -326,7 +326,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div id="tab-dashboard" class="tab active">
   <div class="alert warning">
     <span>⚡</span>
-    <div><strong>March Madness opens March 20.</strong> Selection Sunday March 15. Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
+    <div><strong>Sweet 16 complete. Final Four begins April 5.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
   </div>
 
   <div class="section-header">Performance Overview</div>
@@ -453,7 +453,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <div class="alert info" style="margin-bottom:16px">
     <span>🤖</span>
     <div>
-      <strong>Cowork-Powered:</strong> Games populate here automatically when Cowork runs your daily scripts and scouts each matchup through the 8-metric framework. Review, approve or override, then place manually on DraftKings. Your decision — always.
+      <strong>Cowork-Powered:</strong> Games populate here automatically when Cowork runs your daily scripts and scouts each matchup through the 9-metric framework. Review, approve or override, then place manually on DraftKings. Your decision — always.
       <span style="margin-left:8px;font-family:var(--font-mono);font-size:10px;color:var(--text3)">[ Last run: <span id="sr-last-run">Never</span> ]</span>
     </div>
   </div>
@@ -958,7 +958,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div>📈 Recent form + ATS + line movement (live web search)</div>
           <div>⚡ Situational factors (rest, travel, back-to-backs)</div>
           <div>💰 Sharp money signals + RLM detection</div>
-          <div>⭐ 8-metric scoring — runs silently in background</div>
+          <div>⭐ 9-metric scoring — runs silently in background</div>
           <div>🎲 Monte Carlo simulation — 10,000 game outcomes</div>
           <div>🏆 Final verdict — one pick, one unit size, one confidence %</div>
         </div>
@@ -984,7 +984,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div id="tab-metrics" class="tab">
   <div class="alert success" style="margin-bottom:20px">
     <span>★</span>
-    <div><strong>Golden Rule:</strong> 5+ metrics pointing the same direction = highest-confidence play. Public Betting % (Metric 08) is most powerful when it CONTRADICTS the other 7 — that's where sharp money and model edge align.</div>
+    <div><strong>Golden Rule:</strong> 5+ metrics pointing the same direction = highest-confidence play. Public Betting % (Metric 08) is most powerful when it CONTRADICTS the other 8 — that's where sharp money and model edge align.</div>
   </div>
 
   <div class="grid-2">
@@ -1039,7 +1039,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="metric-desc">Possessions per 40 minutes. Tempo mismatches are consistently undervalued by the market. The slowest team almost always sets the pace — fast team visiting slow home team = UNDER lean.</div>
       <div class="metric-threshold">
         &gt;72 possessions = fast | &lt;65 = slow<br>
-        Gap &gt;7 = significant mismatch → factor into totals
+        Gap &gt;5 = significant mismatch → factor into totals
       </div>
       <div style="margin-top:10px;font-size:11px;color:var(--gold)">→ Find at: KenPom Adj Tempo column</div>
     </div>
@@ -1069,7 +1069,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="metric-num">METRIC 08 · MED-HIGH WEIGHT · NEW</div>
       <div class="metric-name">Public Betting % — Sharp Signal</div>
       <div class="metric-weight"><span class="badge gold">ALL BETS</span></div>
-      <div class="metric-desc">When the line moves AGAINST the public betting %, sharp/professional money is on the other side. That's where the value lives. Most powerful when it contradicts the other 7 metrics.</div>
+      <div class="metric-desc">When the line moves AGAINST the public betting %, sharp/professional money is on the other side. That's where the value lives. Most powerful when it contradicts the other 8 metrics.</div>
       <div class="metric-threshold">
         &gt;70% public on one side = look at the other side<br>
         Reverse line movement = sharp money signal
@@ -1087,10 +1087,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
         <tr><td class="push">02</td><td>Win% Context</td><td class="push">&gt;60% road win = value</td><td>Spread value</td><td><span class="badge red">HIGH</span></td><td class="push">ESPN / SR</td></tr>
         <tr><td class="push">03</td><td>OffReb%</td><td class="push">&gt;35% = threat</td><td>Over/under lean</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom / SR</td></tr>
         <tr><td class="push">04</td><td>DefEff</td><td class="push">Top 30 = elite anchor</td><td>Low-scoring games</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom</td></tr>
-        <tr><td class="push">05</td><td>Pace/Tempo</td><td class="push">Gap &gt;7 = mismatch</td><td>Totals (under lean)</td><td><span class="badge gold">MED-HI</span></td><td class="push">KenPom</td></tr>
+        <tr><td class="push">05</td><td>Pace/Tempo</td><td class="push">Gap &gt;5 = mismatch</td><td>Totals (under lean)</td><td><span class="badge red">HIGH</span></td><td class="push">KenPom</td></tr>
         <tr><td class="push">06</td><td>FT%</td><td class="push">&lt;65% = fade close</td><td>Late-game spreads</td><td><span class="badge gray">MED</span></td><td class="push">ESPN / SR</td></tr>
         <tr><td class="push">07</td><td>Bench Depth</td><td class="push">&lt;10 PPG = vulnerable</td><td>Foul trouble, rivalry</td><td><span class="badge gray">MED</span></td><td class="push">ESPN</td></tr>
-        <tr><td style="color:var(--gold)">08</td><td style="color:var(--gold)">Sharp Money</td><td class="push">&gt;70% public = flip</td><td>All bets — contrarian</td><td><span class="badge gold">MED-HI</span></td><td class="push">Action Network</td></tr>
+        <tr><td style="color:var(--gold)">08</td><td style="color:var(--gold)">Sharp Money</td><td class="push">&gt;70% public = flip</td><td>All bets — contrarian</td><td><span class="badge red">HIGH</span></td><td class="push">Action Network</td></tr>
+        <tr><td class="push">09</td><td>Recent Form</td><td class="push">Last 5 games ATS record + scoring trend</td><td>Tournament play</td><td><span class="badge red">HIGH</span></td><td class="push">ESPN / SR</td></tr>
       </tbody>
     </table>
   </div>
@@ -2829,7 +2830,7 @@ const SR_SAMPLE = [
       {num:'08',name:'Sharp Money',v:'sharp',text:'🚨 71% public on OVER — line DROPPED from 134 to 132.5. Classic reverse line movement. Sharp money confirmed UNDER.'}
     ],
     sharpAlert:'71% public backing the OVER — line dropped 1.5 pts. Reverse line movement = sharp money on UNDER confirmed.',
-    summary:'6 of 8 metrics point UNDER. Houston elite defense + slowdown pace + sharp money alignment. This is the highest-confidence play on the slate.',
+    summary:'6 of 9 metrics point UNDER. Houston elite defense + slowdown pace + sharp money alignment. This is the highest-confidence play on the slate.',
     monteCarlo:{winProb:79, projTotal:'62-61', edge:'+11.3%'}
   },
   {
@@ -2910,7 +2911,7 @@ function srAddGame() {
       {num:'08',name:'Sharp Money',v:'neutral',text:'Check Action Network before betting'}
     ],
     sharpAlert:'Check Action Network for public betting % — required before finalizing any play.',
-    summary:'Paste this matchup into the Game Scout tab (Away @ Home, spread, total) and run the full 8-metric analysis. Then update this card with the results.',
+    summary:'Paste this matchup into the Game Scout tab (Away @ Home, spread, total) and run the full 9-metric analysis. Then update this card with the results.',
     monteCarlo:{winProb:50, projTotal:'—', edge:'—'}
   };
   srGames.unshift(g);
