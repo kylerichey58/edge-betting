@@ -2721,7 +2721,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderBankroll();
   buildLedger();
   initScoutDate();
-  setTimeout(()=>{ buildDashboard(); buildTopbarStats(); buildTicker(); initCharts(); }, 200);
+  buildDashboard();
+  buildTicker();
+  buildTopbarStats();
+  setTimeout(initCharts, 300);
   srRenderAll();
 });
 
