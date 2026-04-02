@@ -282,7 +282,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     </div>
   </div>
   <div class="topbar-right">
-    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">March 13, 2026</div>
+    <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3)"><span id="edge-date"></span></div>
     <button onclick="toggleSettings()" title="API Settings" style="background:transparent;border:1px solid var(--border2);border-radius:6px;padding:4px 10px;color:var(--text3);cursor:pointer;font-size:14px;margin-left:8px">⚙</button>
   </div>
 </div>
@@ -329,7 +329,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <div id="tab-dashboard" class="tab active">
   <div class="alert warning">
     <span>⚡</span>
-    <div><strong>Sweet 16 complete. Final Four begins April 5.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
+    <div><strong>Final Four begins April 5. Duke vs Houston · Auburn vs Florida.</strong> Totals-first strategy in effect. Max 5 bets/day, 8u daily risk cap.</div>
   </div>
 
   <div class="section-header">Performance Overview</div>
@@ -2796,6 +2796,7 @@ function pbRenderTrackerParlays() {
 
 // Init RR size checkboxes and page startup
 document.addEventListener('DOMContentLoaded', () => {
+  const _edgeDate = document.getElementById('edge-date'); if(_edgeDate) _edgeDate.textContent = new Date().toLocaleDateString('en-US', {month:'long', day:'numeric', year:'numeric'});
   ['rr-2leg','rr-3leg','rr-4leg'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.addEventListener('change', pbUpdateRR);
