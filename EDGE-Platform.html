@@ -3287,6 +3287,24 @@ async function runHorseSimulation() {
       }),
     });
 
+    // ── HTTP 400: no DRF file — show clear, actionable download message ──
+    if (resp.status === 400) {
+      await resp.json().catch(() => ({}));   // consume body
+      runBtn.disabled    = false;
+      runBtn.textContent = '🏇 Run Car Wash';
+      status.style.display = 'block';
+      status.style.color   = '#e74c3c';
+      status.innerHTML =
+        `<strong>No DRF file found for ${trackCode}.</strong> `
+        + `Download today's PP Single File (.drf) from `
+        + `<a href="https://www.brisnet.com" target="_blank" style="color:#e74c3c;text-decoration:underline">brisnet.com</a>`
+        + ` and place it in `
+        + `<code style="font-family:var(--font-mono);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:3px">horse_racing_data/</code>`
+        + ` then click Run Car Wash again.`;
+      document.getElementById('ts-results').style.display = 'none';
+      return;
+    }
+
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     if (!data.ok) throw new Error(data.error || 'Server returned ok:false');

@@ -312,22 +312,39 @@ def horse_simulate():
         data_source = "demo"
         horses = []
 
-        # ── Step 1–2: Try to fetch + parse real Brisnet data ─────────────
+        # ── Step 1–2: Load local DRF + parse ─────────────────────────────
         try:
             from brisnet_fetcher     import fetch_race_card
             from horse_racing_parser import parse_race
 
             file_path = fetch_race_card(track_code, today_str)
-            horses    = parse_race(file_path, race_number)
+
+            if file_path is None:
+                # No local DRF file — tell the user to download it manually.
+                # Return 400 so the UI can display a clear, actionable message.
+                print(f"  [sim] No DRF file for {track_code} — returning 400 to UI")
+                return jsonify({
+                    "ok":    False,
+                    "error": (
+                        f"No DRF file found for {track_code}. "
+                        "Download today's PP Single File (.drf) from brisnet.com "
+                        "and drop it in horse_racing_data/ then retry."
+                    ),
+                    "no_drf": True,
+                }), 400
+
+            horses = parse_race(file_path, race_number)
 
             if not horses:
                 raise ValueError(f"No horses parsed for race {race_number} in {file_path}")
 
             data_source = "brisnet"
-            print(f"  [sim] Brisnet data loaded: {len(horses)} horses for {track_code} R{race_number}")
+            print(f"  [sim] DRF loaded: {len(horses)} horses for {track_code} R{race_number}")
 
         except Exception as fetch_err:
-            print(f"  [sim] Brisnet unavailable ({fetch_err}) — using demo horses")
+            # Unexpected parse/import error — fall back to demo data so the
+            # UI remains usable for testing even when something else breaks.
+            print(f"  [sim] Parse error ({fetch_err}) — falling back to demo horses")
             horses = _demo_horses(track_code, race_number)
 
         # ── Step 3: Score ─────────────────────────────────────────────────
