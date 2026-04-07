@@ -1112,24 +1112,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
     <div class="card-title" style="margin-bottom:16px">🏇 Car Wash Simulator — 11-Metric · 10,000-Trial Monte Carlo</div>
     <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
 
-      <div class="form-group" style="min-width:200px;margin-bottom:0">
-        <label class="form-label">Track</label>
+      <div class="form-group" style="min-width:220px;margin-bottom:0">
+        <label class="form-label" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Track</span>
+          <button id="ts-track-refresh" onclick="loadTrackOptions(true)"
+            title="Refresh tracks from horse_racing_data/"
+            style="background:none;border:none;cursor:pointer;color:#7B3FBE;font-size:13px;padding:0;line-height:1">↺ Refresh</button>
+        </label>
         <select class="form-input" id="ts-track">
-          <option value="CD">CD — Churchill Downs</option>
-          <option value="KEE" selected>KEE — Keeneland</option>
-          <option value="SA">SA — Santa Anita</option>
-          <option value="GP">GP — Gulfstream Park</option>
-          <option value="AQU">AQU — Aqueduct</option>
-          <option value="BEL">BEL — Belmont Park</option>
-          <option value="SAR">SAR — Saratoga</option>
-          <option value="DMR">DMR — Del Mar</option>
-          <option value="TAM">TAM — Tampa Bay Downs</option>
-          <option value="OP">OP — Oaklawn Park</option>
-          <option value="TUP">TUP — Turf Paradise</option>
-          <option value="PIM">PIM — Pimlico</option>
-          <option value="SUF">SUF — Suffolk Downs</option>
-          <option value="MNR">MNR — Mountaineer</option>
+          <option value="">— loading tracks… —</option>
         </select>
+        <div id="ts-track-hint" style="margin-top:5px;font-size:11px;color:var(--text3);font-family:var(--font-mono)">
+          Drop Brisnet ZIP files into horse_racing_data\ — they load automatically
+        </div>
       </div>
 
       <div class="form-group" style="min-width:110px;margin-bottom:0">
@@ -1326,6 +1321,7 @@ window.showTab = function(name) {
   // Init charts and dynamic content on tab switch
   if(name === 'dashboard') { buildDashboard(); setTimeout(initCharts, 100); }
   if(name === 'bankroll') buildLedger();
+  if(name === 'trainerscout') loadTrackOptions();
 }
 
 // ─── CHARTS ───
@@ -3258,6 +3254,76 @@ let tsRecommendation = null;
 let tsTrackCode      = '';
 let tsRaceNumber     = 1;
 let tsRaceDate       = '';
+
+// ── loadTrackOptions ─────────────────────────────────────────────
+// Fetches available tracks from GET /horse/tracks (which auto-scans
+// Downloads/ for *n.zip files) and populates the #ts-track dropdown.
+// Called on first open of Trainer Scout tab and when Refresh is clicked.
+async function loadTrackOptions(userTriggered = false) {
+  const sel     = document.getElementById('ts-track');
+  const refresh = document.getElementById('ts-track-refresh');
+  const hint    = document.getElementById('ts-track-hint');
+
+  if (refresh) refresh.textContent = '↺ …';
+
+  try {
+    const resp = await fetch(`${EDGE_SERVER}/horse/tracks`, { method: 'GET' });
+    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+    const json = await resp.json();
+    const tracks = json.tracks || [];
+
+    // Preserve previously selected value if it still exists
+    const prev = sel.value;
+
+    sel.innerHTML = '';
+    if (tracks.length === 0) {
+      sel.innerHTML = '<option value="">— no DRF files found —</option>';
+      hint.style.color = '#e67e22';
+    } else {
+      tracks.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value       = t.value;
+        opt.textContent = t.label;
+        if (t.value === prev) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      // Default: select first option if previous value not found
+      if (!sel.value) sel.selectedIndex = 0;
+      hint.style.color = 'var(--text3)';
+    }
+  } catch (err) {
+    // Server not running — fall back to static list so the tab stays usable
+    if (sel.children.length <= 1 && sel.children[0]?.value === '') {
+      sel.innerHTML = [
+        ['CD',  'CD — Churchill Downs'],
+        ['KEE', 'KEE — Keeneland'],
+        ['GP',  'GP — Gulfstream Park'],
+        ['SA',  'SA — Santa Anita'],
+        ['SAR', 'SAR — Saratoga'],
+        ['BEL', 'BEL — Belmont Park'],
+        ['AQU', 'AQU — Aqueduct'],
+        ['DMR', 'DMR — Del Mar'],
+        ['TAM', 'TAM — Tampa Bay Downs'],
+        ['OP',  'OP — Oaklawn Park'],
+        ['PIM', 'PIM — Pimlico'],
+        ['LRL', 'LRL — Laurel'],
+        ['FG',  'FG — Fair Grounds'],
+        ['TP',  'TP — Turfway Park'],
+      ].map(([v,l]) => `<option value="${v}">${l}</option>`).join('');
+    }
+    if (userTriggered) {
+      const hint = document.getElementById('ts-track-hint');
+      hint.style.color = '#e74c3c';
+      hint.textContent = `EDGE server not responding — start edge_server.py first`;
+      setTimeout(() => {
+        hint.style.color = 'var(--text3)';
+        hint.textContent = 'Drop Brisnet ZIP files into horse_racing_data\\ — they load automatically';
+      }, 4000);
+    }
+  } finally {
+    if (refresh) refresh.textContent = '↺ Refresh';
+  }
+}
 
 // ── runHorseSimulation ───────────────────────────────────────────
 async function runHorseSimulation() {

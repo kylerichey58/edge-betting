@@ -60,6 +60,38 @@ def health():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ROUTE 0b: GET /horse/tracks
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route("/horse/tracks", methods=["GET"])
+def horse_tracks():
+    """
+    Return available tracks from local DRF files.
+    Auto-scans Downloads/ for *n.zip files before searching.
+
+    Response JSON:
+        {
+          "ok": true,
+          "tracks": [
+            { "value": "KEE", "label": "KEE — 04/07", "mmdd": "0407" },
+            { "value": "GP",  "label": "GP — 04/09",  "mmdd": "0409" },
+            ...
+          ]
+        }
+
+    Returns empty tracks list if no DRF files are present.
+    """
+    try:
+        from brisnet_fetcher import get_available_tracks
+        tracks = get_available_tracks()
+        return jsonify({"ok": True, "tracks": tracks})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": str(e), "tracks": []}), 500
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DEMO HORSE DATA (fallback when Brisnet file is unavailable)
 # Used for local testing when .drf has not been downloaded yet.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -466,6 +498,7 @@ if __name__ == "__main__":
     print(f"  Sports dir   : {SPORTS_DIR}")
     print(f"  Database     : {DB_PATH}")
     print(f"  Endpoints    : GET  /health")
+    print(f"                 GET  /horse/tracks")
     print(f"                 POST /horse/simulate")
     print(f"                 POST /horse/grade")
     print()
