@@ -286,11 +286,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
   <button class="nav-btn active" onclick="showTab('dashboard')">Dashboard</button>
   <button class="nav-btn" onclick="showTab('scouting')">⚡ Scouting Report</button>
   <button class="nav-btn" onclick="showTab('scout')">Game Scout</button>
+  <button class="nav-btn" onclick="showTab('trainerscout')" style="color:#7B3FBE">🏇 Trainer Scout</button>
   <button class="nav-btn" onclick="showTab('parlay')">Parlay Builder</button>
   <button class="nav-btn" onclick="showTab('log')">Log Bet</button>
   <button class="nav-btn" onclick="showTab('tracker')">Bet Tracker</button>
   <button class="nav-btn" onclick="showTab('bankroll')">Bankroll</button>
-  <button class="nav-btn" onclick="showTab('horseracing')">🏇 Horse Racing</button>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -871,6 +871,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="sport-btn" onclick="setSport('NCAAW',this)">NCAAW</div>
           <div class="sport-btn" onclick="setSport('NBA',this)">NBA</div>
           <div class="sport-btn" onclick="setSport('MLB',this)">MLB</div>
+          <div class="sport-btn" onclick="setSport('HORSE_RACING',this)" data-sport="HORSE_RACING" style="color:#7B3FBE">🏇 HORSE</div>
         </div>
       </div>
 
@@ -903,6 +904,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
           <div class="type-pill active" onclick="setBetType('TOTAL',this)">TOTAL</div>
           <div class="type-pill" onclick="setBetType('SPREAD',this)">SPREAD</div>
           <div class="type-pill" onclick="setBetType('MONEYLINE',this)">MONEYLINE</div>
+          <div class="type-pill" onclick="setBetType('WIN_BET',this)" style="color:#7B3FBE">WIN_BET</div>
+          <div class="type-pill" onclick="setBetType('EXACTA',this)" style="color:#7B3FBE">EXACTA</div>
+          <div class="type-pill" onclick="setBetType('TRIFECTA',this)" style="color:#7B3FBE">TRIFECTA</div>
         </div>
       </div>
 
@@ -1100,37 +1104,138 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 </div>
 
 
-<!-- ═══════════════ HORSE RACING ═══════════════ -->
-<div id="tab-horseracing" class="tab">
-  <div class="alert info" style="margin-bottom:20px">
-    <span>🏇</span>
-    <div>
-      <strong>Horse Racing — Coming Soon.</strong> Track analysis, ROI by race type, and metric framework expansion planned for summer 2026.
+<!-- ═══════════════ TRAINER SCOUT ═══════════════ -->
+<div id="tab-trainerscout" class="tab">
+
+  <!-- ── INPUT CARD ── -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-title" style="margin-bottom:16px">🏇 Car Wash Simulator — 11-Metric · 10,000-Trial Monte Carlo</div>
+    <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap">
+
+      <div class="form-group" style="min-width:200px;margin-bottom:0">
+        <label class="form-label">Track</label>
+        <select class="form-input" id="ts-track">
+          <option value="CD">CD — Churchill Downs</option>
+          <option value="KEE" selected>KEE — Keeneland</option>
+          <option value="SA">SA — Santa Anita</option>
+          <option value="GP">GP — Gulfstream Park</option>
+          <option value="AQU">AQU — Aqueduct</option>
+          <option value="BEL">BEL — Belmont Park</option>
+          <option value="SAR">SAR — Saratoga</option>
+          <option value="DMR">DMR — Del Mar</option>
+          <option value="TAM">TAM — Tampa Bay Downs</option>
+          <option value="OP">OP — Oaklawn Park</option>
+          <option value="TUP">TUP — Turf Paradise</option>
+          <option value="PIM">PIM — Pimlico</option>
+          <option value="SUF">SUF — Suffolk Downs</option>
+          <option value="MNR">MNR — Mountaineer</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="min-width:110px;margin-bottom:0">
+        <label class="form-label">Race #</label>
+        <input class="form-input" type="number" id="ts-race" min="1" max="12" value="1" style="text-align:center" />
+      </div>
+
+      <div class="form-group" style="min-width:220px;margin-bottom:0">
+        <label class="form-label">M05 Pace Scenario (manual read)</label>
+        <select class="form-input" id="ts-pace">
+          <option value="0">0 — No advantage: caught in speed duel</option>
+          <option value="1" selected>1 — Neutral</option>
+          <option value="2">2 — Good setup: ideal stalker</option>
+          <option value="3">3 — Perfect: lone speed on front</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">&nbsp;</label>
+        <button id="ts-run-btn" class="btn" onclick="runHorseSimulation()"
+          style="background:#7B3FBE;color:#fff;border-color:#7B3FBE;padding:0 28px;height:44px;font-size:13px;letter-spacing:.5px">
+          🏇 Run Car Wash
+        </button>
+      </div>
     </div>
+    <div id="ts-status" style="margin-top:12px;font-family:var(--font-mono);font-size:12px;color:var(--text3);display:none"></div>
   </div>
-  <div class="grid-4">
-    <div class="stat-card gold">
-      <div class="stat-label">Status</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--gold);margin-top:6px">PLANNED</div>
-      <div class="stat-sub">Summer 2026</div>
+
+  <!-- ── RESULTS AREA ── -->
+  <div id="ts-results" style="display:none">
+
+    <!-- data source badge -->
+    <div id="ts-source-badge" style="margin-bottom:12px;font-family:var(--font-mono);font-size:11px;letter-spacing:.5px"></div>
+
+    <!-- Car Wash table -->
+    <div class="card" style="margin-bottom:16px;overflow-x:auto">
+      <div class="card-title" style="margin-bottom:14px">Car Wash Probability Table</div>
+      <table class="tbl" id="ts-table">
+        <thead>
+          <tr>
+            <th>Horse</th>
+            <th style="text-align:center">Post</th>
+            <th style="text-align:right">Win%</th>
+            <th style="text-align:right">Place%</th>
+            <th style="text-align:right">Show%</th>
+            <th>Value</th>
+            <th style="text-align:center">Score</th>
+            <th>Flag</th>
+          </tr>
+        </thead>
+        <tbody id="ts-table-body"></tbody>
+      </table>
     </div>
-    <div class="stat-card teal">
-      <div class="stat-label">Primary Edge</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--teal,#2dd4bf);margin-top:6px">ROI BY RACE TYPE</div>
-      <div class="stat-sub">Track + distance filters</div>
+
+    <!-- Recommendation block -->
+    <div class="card" id="ts-rec-card" style="margin-bottom:16px;border-left:4px solid #7B3FBE">
+      <div id="ts-rec-content"></div>
     </div>
-    <div class="stat-card blue">
-      <div class="stat-label">Approach</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--blue);margin-top:6px">METRIC BUILD</div>
-      <div class="stat-sub">Pace + form + class</div>
+
+    <!-- Action buttons -->
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px">
+      <button id="ts-log-btn" class="btn" onclick="logBetFromHorse()"
+        style="background:#7B3FBE;color:#fff;border-color:#7B3FBE;display:none">
+        📝 Log This Bet
+      </button>
+      <button class="btn" onclick="toggleGradeSection()"
+        style="border-color:#7B3FBE;color:#7B3FBE">
+        🏁 Grade This Race
+      </button>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Data Source</div>
-      <div style="font-family:var(--font-mono);font-size:13px;color:var(--text2);margin-top:6px">TBD</div>
-      <div class="stat-sub">API integration pending</div>
+
+    <!-- Grade section -->
+    <div id="ts-grade-section" class="card" style="display:none;border-color:#7B3FBE">
+      <div class="card-title" style="margin-bottom:14px">Grade Race Results</div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Finishing Order — comma-separated, 1st → last</label>
+        <input class="form-input" id="ts-grade-input"
+          placeholder="e.g. MORNING GLORY, FAST AND LOOSE, DARK STAR RISING" />
+      </div>
+      <button class="btn" onclick="gradeHorseRace()"
+        style="background:#7B3FBE;color:#fff;border-color:#7B3FBE">
+        Submit Grade
+      </button>
+
+      <!-- Grade results -->
+      <div id="ts-grade-results" style="margin-top:20px;display:none">
+        <div class="card-title" style="margin-bottom:12px">Grade Results</div>
+        <table class="tbl" id="ts-grade-table">
+          <thead>
+            <tr>
+              <th>Horse</th>
+              <th style="text-align:center">Finish</th>
+              <th>Result</th>
+              <th>Recommendation</th>
+              <th style="text-align:right">P/L</th>
+            </tr>
+          </thead>
+          <tbody id="ts-grade-body"></tbody>
+        </table>
+        <div id="ts-grade-total" style="margin-top:10px;font-family:var(--font-mono);font-size:13px"></div>
+      </div>
     </div>
-  </div>
-</div>
+
+  </div><!-- /ts-results -->
+
+</div><!-- /tab-trainerscout -->
 
 </div><!-- /main -->
 </div><!-- /app -->
@@ -3138,6 +3243,300 @@ function buildLedger() {
 function toggleLedgerDay(day) {
   const el = document.getElementById('ledger-day-'+day.replace(/\s/g,'-'));
   if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRAINER SCOUT — Car Wash Simulator
+// Calls edge_server.py on port 5050
+// ═══════════════════════════════════════════════════════════════════
+
+const EDGE_SERVER = 'http://localhost:5050';
+
+// ── module state ──────────────────────────────────────────────────
+let tsSimResults     = null;
+let tsRecommendation = null;
+let tsTrackCode      = '';
+let tsRaceNumber     = 1;
+let tsRaceDate       = '';
+
+// ── runHorseSimulation ───────────────────────────────────────────
+async function runHorseSimulation() {
+  const trackCode    = document.getElementById('ts-track').value;
+  const raceNumber   = parseInt(document.getElementById('ts-race').value) || 1;
+  const paceScenario = parseInt(document.getElementById('ts-pace').value);
+
+  const runBtn = document.getElementById('ts-run-btn');
+  const status = document.getElementById('ts-status');
+
+  runBtn.disabled = true;
+  runBtn.textContent = '⏳ Running Car Wash…';
+  status.style.display  = 'block';
+  status.style.color    = 'var(--text3)';
+  status.textContent    = `Connecting to EDGE server (${EDGE_SERVER})…`;
+  document.getElementById('ts-results').style.display = 'none';
+  document.getElementById('ts-grade-section').style.display = 'none';
+
+  try {
+    const resp = await fetch(`${EDGE_SERVER}/horse/simulate`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        track_code:    trackCode,
+        race_number:   raceNumber,
+        pace_scenario: paceScenario,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Server returned ok:false');
+
+    // Save state for Log/Grade
+    tsSimResults     = data.simulation_results;
+    tsRecommendation = data.recommendation;
+    tsTrackCode      = data.track_code;
+    tsRaceNumber     = data.race_number;
+    tsRaceDate       = data.race_date;
+
+    // Render
+    _renderCarWashTable(data.simulation_results, data.recommendation, data.data_source);
+
+    status.style.color = 'var(--green)';
+    status.textContent = `✓ Simulation complete — ${data.simulation_results.length} horses · source: ${data.data_source.toUpperCase()} · ${tsTrackCode} R${tsRaceNumber}`;
+    document.getElementById('ts-results').style.display = 'block';
+
+  } catch (err) {
+    status.style.color = '#e74c3c';
+    status.textContent = `✗ ${err.message} — Is edge_server.py running? (python edge_server.py in the SportsBetting folder)`;
+  } finally {
+    runBtn.disabled     = false;
+    runBtn.textContent  = '🏇 Run Car Wash';
+  }
+}
+
+// ── _renderCarWashTable ───────────────────────────────────────────
+const _VALUE_COLORS = {
+  STRONG_EV:   '#2ecc71',
+  MARGINAL_EV: '#f1c40f',
+  NEUTRAL:     'inherit',
+  NEGATIVE_EV: '#e74c3c',
+};
+
+function _renderCarWashTable(results, rec, dataSource) {
+  // Source badge
+  const srcBadge = document.getElementById('ts-source-badge');
+  if (dataSource === 'brisnet') {
+    srcBadge.innerHTML = '<span style="color:#2ecc71">✓ BRISNET LIVE DATA</span>';
+  } else {
+    srcBadge.innerHTML = '<span style="color:#f1c40f">⚠ DEMO DATA — Brisnet file unavailable for this race/date</span>';
+  }
+
+  // Table rows
+  const tbody = document.getElementById('ts-table-body');
+  tbody.innerHTML = '';
+
+  for (const h of results) {
+    const vflag  = h.value_flag || 'NEUTRAL';
+    const vColor = _VALUE_COLORS[vflag] || 'inherit';
+
+    let flagHtml = '';
+    if (h.is_gem)         flagHtml += `<span style="color:#f0d000;font-weight:bold;margin-right:4px">GEM</span>`;
+    if (h.is_no_play)     flagHtml += `<span style="color:#e74c3c;font-weight:bold;margin-right:4px">NO-PLAY</span>`;
+    if (h.is_bounce_risk) flagHtml += `<span style="color:#e67e22">BOUNCE</span>`;
+    if (!flagHtml)        flagHtml  = '<span style="color:var(--text3)">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${h.horse_name || '—'}</strong></td>
+      <td style="text-align:center">${h.post_position ?? '—'}</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${(h.win_pct * 100).toFixed(1)}%</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${(h.place_pct * 100).toFixed(1)}%</td>
+      <td style="text-align:right;font-family:var(--font-mono)">${(h.show_pct * 100).toFixed(1)}%</td>
+      <td style="color:${vColor};font-family:var(--font-mono);font-size:12px">${vflag}</td>
+      <td style="text-align:center;font-family:var(--font-mono)">${h.composite_score ?? '—'}</td>
+      <td>${flagHtml}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Recommendation block
+  const recEl   = document.getElementById('ts-rec-content');
+  const recType = rec.recommendation || 'NO_PLAY';
+  const horses  = (rec.horses_involved || []).join(' + ');
+  const conf    = rec.confidence  || 'LOW';
+  const reason  = rec.reasoning   || '';
+
+  const recColorMap = {
+    WIN_BET:      '#2ecc71',
+    EXACTA_BOX:   '#f1c40f',
+    TRIFECTA_KEY: '#7B3FBE',
+    NO_PLAY:      '#e74c3c',
+  };
+  const recColor = recColorMap[recType] || '#7B3FBE';
+
+  const confBadgeColor = conf === 'HIGH' ? '#2ecc71' : conf === 'MEDIUM' ? '#f1c40f' : '#e74c3c';
+
+  recEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+      <span style="font-family:var(--font-mono);font-size:20px;font-weight:bold;color:${recColor}">${recType}</span>
+      <span style="font-family:var(--font-mono);font-size:11px;color:${confBadgeColor};border:1px solid ${confBadgeColor};padding:2px 8px;border-radius:4px;letter-spacing:.5px">${conf}</span>
+    </div>
+    <div style="font-size:15px;color:var(--text1);margin-bottom:8px;font-weight:600">${horses || '—'}</div>
+    <div style="font-size:13px;color:var(--text2);font-style:italic">${reason}</div>
+  `;
+
+  // Log This Bet button: only if not NO_PLAY
+  const logBtn = document.getElementById('ts-log-btn');
+  logBtn.style.display = recType !== 'NO_PLAY' ? 'inline-flex' : 'none';
+}
+
+// ── logBetFromHorse ───────────────────────────────────────────────
+function logBetFromHorse() {
+  if (!tsSimResults || !tsRecommendation) return;
+  const rec = tsRecommendation;
+
+  showTab('log');
+
+  setTimeout(() => {
+    // Sport → HORSE_RACING
+    logSport = 'HORSE_RACING';
+    document.querySelectorAll('#log-sport-toggle .sport-btn').forEach(b => b.classList.remove('active'));
+    const hrBtn = document.querySelector('#log-sport-toggle .sport-btn[data-sport="HORSE_RACING"]');
+    if (hrBtn) hrBtn.classList.add('active');
+
+    // Game context → Race Day
+    logContext = 'Race Day';
+    document.querySelectorAll('#log-context-toggle .sport-btn').forEach(b => b.classList.remove('active'));
+    const badge = document.getElementById('log-context-badge');
+    if (badge) badge.textContent = 'RACE DAY';
+
+    // Away = Track, Home = Race #
+    const awayEl = document.getElementById('log-away');
+    const homeEl = document.getElementById('log-home');
+    if (awayEl) awayEl.value = tsTrackCode;
+    if (homeEl) homeEl.value = `Race ${tsRaceNumber}`;
+
+    // Bet type mapping
+    const typeMap = { WIN_BET: 'WIN_BET', EXACTA_BOX: 'EXACTA', TRIFECTA_KEY: 'TRIFECTA' };
+    const betTypeStr = typeMap[rec.recommendation] || 'WIN_BET';
+    logBetType = betTypeStr;
+    document.querySelectorAll('#log-type-pills .type-pill').forEach(b => b.classList.remove('active'));
+    const tBtn = [...document.querySelectorAll('#log-type-pills .type-pill')]
+      .find(b => b.textContent.trim() === betTypeStr);
+    if (tBtn) tBtn.classList.add('active');
+
+    // Pick = horse name(s)
+    const pickEl = document.getElementById('log-pick');
+    if (pickEl) pickEl.value = (rec.horses_involved || []).join(' / ');
+
+    // Odds = placeholder (pari-mutuel — use morning line of top horse)
+    const topHorse = tsSimResults[0];
+    const oddsEl = document.getElementById('log-odds');
+    if (oddsEl) {
+      const ml = topHorse?.morning_line;
+      oddsEl.value = ml != null ? `+${Math.round((ml) * 100)}` : '-110';
+    }
+
+    // Units = 1.0 default
+    const unitsEl = document.getElementById('log-units');
+    if (unitsEl) unitsEl.value = '1.0';
+
+    // Stars from confidence
+    const starsMap = { HIGH: 4, MEDIUM: 3, LOW: 2 };
+    const autoStars = starsMap[rec.confidence] || 3;
+    logStars = autoStars;
+    document.querySelectorAll('#log-star-pills .type-pill').forEach(b => b.classList.remove('active'));
+    const sBtn = [...document.querySelectorAll('#log-star-pills .type-pill')]
+      .find(b => (b.textContent.match(/★/g) || []).length === autoStars);
+    if (sBtn) sBtn.classList.add('active');
+
+    // Reasoning
+    const reasonEl = document.getElementById('log-reason');
+    if (reasonEl) reasonEl.value = rec.reasoning || '';
+
+    updatePreview();
+
+    // Flash toast
+    const flash = document.createElement('div');
+    flash.style.cssText = 'position:fixed;top:80px;right:24px;background:#7B3FBE;color:#fff;padding:10px 22px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:9999;letter-spacing:.5px';
+    flash.textContent = '🏇 RACE DATA LOADED — Review & Save';
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 3000);
+  }, 100);
+}
+
+// ── toggleGradeSection ────────────────────────────────────────────
+function toggleGradeSection() {
+  const section = document.getElementById('ts-grade-section');
+  section.style.display = section.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── gradeHorseRace ────────────────────────────────────────────────
+async function gradeHorseRace() {
+  const raw = document.getElementById('ts-grade-input').value.trim();
+  if (!raw) {
+    alert('Enter finishing order as comma-separated horse names (1st → last).');
+    return;
+  }
+
+  const resultsList = raw.split(',').map(s => s.trim()).filter(Boolean);
+
+  try {
+    const resp = await fetch(`${EDGE_SERVER}/horse/grade`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        track_code:   tsTrackCode,
+        race_date:    tsRaceDate,
+        race_number:  tsRaceNumber,
+        results_list: resultsList,
+      }),
+    });
+
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Grade failed');
+
+    _renderGradeResults(data.rows, data.bets_logged, data.graded_count);
+  } catch (err) {
+    alert(`Grade error: ${err.message}`);
+  }
+}
+
+// ── _renderGradeResults ───────────────────────────────────────────
+function _renderGradeResults(rows, betsLogged, gradedCount) {
+  const tbody = document.getElementById('ts-grade-body');
+  tbody.innerHTML = '';
+
+  let totalPL = 0;
+
+  for (const r of rows) {
+    const pl = r.profit_loss ?? 0;
+    totalPL += pl;
+    const plColor = pl > 0 ? 'var(--green)' : pl < 0 ? '#e74c3c' : 'var(--text3)';
+    const plStr   = `${pl >= 0 ? '+' : ''}${pl.toFixed(2)}u`;
+
+    const resultColors = { WIN: 'var(--green)', PLACE: '#f1c40f', SHOW: '#7B3FBE', OUT: '#e74c3c' };
+    const resColor = resultColors[r.result] || 'var(--text2)';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${r.horse_name || '—'}</strong></td>
+      <td style="text-align:center">${r.finish_position ?? '—'}</td>
+      <td style="color:${resColor};font-weight:bold">${r.result || '—'}</td>
+      <td style="font-family:var(--font-mono);font-size:12px">${r.recommendation || '—'}</td>
+      <td style="text-align:right;color:${plColor};font-family:var(--font-mono);font-weight:bold">${plStr}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  const totalColor = totalPL > 0 ? 'var(--green)' : totalPL < 0 ? '#e74c3c' : 'var(--text3)';
+  const totalStr   = `${totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}u`;
+  document.getElementById('ts-grade-total').innerHTML =
+    `<strong>Total P/L:</strong> <span style="color:${totalColor};font-family:var(--font-mono);font-size:15px;font-weight:bold">${totalStr}</span>`
+    + ` &nbsp;·&nbsp; ${gradedCount} horse(s) graded · ${betsLogged} bet(s) logged`;
+
+  document.getElementById('ts-grade-results').style.display = 'block';
 }
 
 </script>
