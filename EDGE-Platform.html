@@ -3616,7 +3616,6 @@ function logExoticBet(type) {
   if (!exotic) return;
   const track = document.getElementById('ts-track')?.value || '';
   const race  = document.getElementById('ts-race')?.value  || '';
-  const today = new Date().toISOString().split('T')[0];
   const typeMap = {
     exacta:     exotic.exacta_box,
     trifecta:   exotic.trifecta_box,
@@ -3625,28 +3624,62 @@ function logExoticBet(type) {
   const pick = typeMap[type];
   if (!pick) return;
   const horseLine = pick.posts.map((p,i) => `#${p} ${pick.horses[i]}`).join(' / ');
-  const betLabel  = type.charAt(0).toUpperCase() + type.slice(1) + ' Box';
-  const notes     = `${betLabel} · ${track} R${race} · ${horseLine} · $2 box = $${pick.total_cost}`;
-  // Pre-fill Log Bet tab fields
-  const dateEl  = document.getElementById('bet-date');
-  const sportEl = document.getElementById('bet-sport');
-  const gameEl  = document.getElementById('bet-game');
-  const typeEl  = document.getElementById('bet-type');
-  const notesEl = document.getElementById('bet-notes');
-  const unitsEl = document.getElementById('bet-units');
-  if (dateEl)  dateEl.value  = today;
-  if (sportEl) sportEl.value = 'HORSE_RACING';
-  if (gameEl)  gameEl.value  = `${track} Race ${race}`;
-  if (typeEl)  typeEl.value  = betLabel.toUpperCase().replace(' ', '_');
-  if (notesEl) notesEl.value = notes;
-  if (unitsEl) unitsEl.value = (pick.total_cost / 100).toFixed(2);
-  // Switch to Log Bet tab
-  document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  const logTab = document.getElementById('tab-logbet');
-  const logBtn = document.querySelector('[onclick*="tab-logbet"]');
-  if (logTab) logTab.style.display = 'block';
-  if (logBtn) logBtn.classList.add('active');
+  const betTypeStr = type === 'exacta' ? 'EXACTA' : type === 'trifecta' ? 'TRIFECTA' : 'SUPERFECTA';
+
+  // Switch to Log Bet tab first, then populate inside setTimeout (matches logBetFromHorse pattern)
+  showTab('log');
+
+  setTimeout(() => {
+    // Sport → HORSE_RACING
+    logSport = 'HORSE_RACING';
+    document.querySelectorAll('#log-sport-toggle .sport-btn').forEach(b => b.classList.remove('active'));
+    const hrBtn = document.querySelector('#log-sport-toggle .sport-btn[data-sport="HORSE_RACING"]');
+    if (hrBtn) hrBtn.classList.add('active');
+
+    // Context → Race Day
+    logContext = 'Race Day';
+    document.querySelectorAll('#log-context-toggle .sport-btn').forEach(b => b.classList.remove('active'));
+    const badge = document.getElementById('log-context-badge');
+    if (badge) badge.textContent = 'RACE DAY';
+
+    // Away = Track code, Home = Race #
+    const awayEl = document.getElementById('log-away');
+    const homeEl = document.getElementById('log-home');
+    if (awayEl) awayEl.value = track;
+    if (homeEl) homeEl.value = `Race ${race}`;
+
+    // Bet type pill
+    logBetType = betTypeStr;
+    document.querySelectorAll('#log-type-pills .type-pill').forEach(b => b.classList.remove('active'));
+    const tBtn = [...document.querySelectorAll('#log-type-pills .type-pill')]
+      .find(b => b.textContent.trim() === betTypeStr);
+    if (tBtn) tBtn.classList.add('active');
+
+    // Pick = formatted horse line
+    const pickEl = document.getElementById('log-pick');
+    if (pickEl) pickEl.value = horseLine;
+
+    // Odds = pari-mutuel placeholder
+    const oddsEl = document.getElementById('log-odds');
+    if (oddsEl) oddsEl.value = 'PARI';
+
+    // Units = box cost / 100 (1 unit = $100)
+    const unitsEl = document.getElementById('log-units');
+    if (unitsEl) unitsEl.value = (pick.total_cost / 100).toFixed(2);
+
+    // Reason = full exotic description
+    const reasonEl = document.getElementById('log-reason');
+    if (reasonEl) reasonEl.value = `${betTypeStr} Box · ${track} R${race} · ${horseLine} · $2 box = $${pick.total_cost}`;
+
+    updatePreview();
+
+    // Flash toast
+    const flash = document.createElement('div');
+    flash.style.cssText = 'position:fixed;top:80px;right:24px;background:#7B3FBE;color:#fff;padding:10px 22px;border-radius:8px;font-family:var(--font-mono);font-size:12px;z-index:9999;letter-spacing:.5px';
+    flash.textContent = `🎰 ${betTypeStr} BOX LOADED — Review & Save`;
+    document.body.appendChild(flash);
+    setTimeout(() => flash.remove(), 3000);
+  }, 50);
 }
 
 // ── logBetFromHorse ───────────────────────────────────────────────
