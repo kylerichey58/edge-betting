@@ -1233,6 +1233,79 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 
   </div><!-- /ts-results -->
 
+  <div id="ts-exotic-picks" style="display:none; margin-top:16px">
+    <div class="card">
+      <div class="card-title" style="color:#7B3FBE">
+        🎰 Exotic Picks — Box Bets
+      </div>
+      <!-- Exacta Box -->
+      <div id="ts-exotic-exacta" class="exotic-row"
+           style="display:flex; justify-content:space-between;
+                  align-items:center; padding:12px 0;
+                  border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div>
+          <div class="exotic-label" style="color:#a0aec0;
+               font-size:11px; text-transform:uppercase;
+               letter-spacing:1px">Exacta Box</div>
+          <div id="ts-exacta-horses" style="color:#fff;
+               font-size:15px; margin-top:4px"></div>
+          <div id="ts-exacta-cost" style="color:#7B3FBE;
+               font-size:13px; margin-top:2px"></div>
+        </div>
+        <button id="ts-log-exacta" onclick="logExoticBet('exacta')"
+          style="background:#7B3FBE; color:#fff; border:none;
+                 border-radius:6px; padding:8px 16px;
+                 cursor:pointer; font-size:13px;
+                 white-space:nowrap">
+          Log Exacta
+        </button>
+      </div>
+      <!-- Trifecta Box -->
+      <div id="ts-exotic-trifecta" class="exotic-row"
+           style="display:flex; justify-content:space-between;
+                  align-items:center; padding:12px 0;
+                  border-bottom:1px solid rgba(255,255,255,0.07)">
+        <div>
+          <div class="exotic-label" style="color:#a0aec0;
+               font-size:11px; text-transform:uppercase;
+               letter-spacing:1px">Trifecta Box</div>
+          <div id="ts-trifecta-horses" style="color:#fff;
+               font-size:15px; margin-top:4px"></div>
+          <div id="ts-trifecta-cost" style="color:#7B3FBE;
+               font-size:13px; margin-top:2px"></div>
+        </div>
+        <button id="ts-log-trifecta" onclick="logExoticBet('trifecta')"
+          style="background:#7B3FBE; color:#fff; border:none;
+                 border-radius:6px; padding:8px 16px;
+                 cursor:pointer; font-size:13px;
+                 white-space:nowrap">
+          Log Trifecta
+        </button>
+      </div>
+      <!-- Superfecta Box -->
+      <div id="ts-exotic-superfecta" class="exotic-row"
+           style="display:flex; justify-content:space-between;
+                  align-items:center; padding:12px 0">
+        <div>
+          <div class="exotic-label" style="color:#a0aec0;
+               font-size:11px; text-transform:uppercase;
+               letter-spacing:1px">Superfecta Box</div>
+          <div id="ts-superfecta-horses" style="color:#fff;
+               font-size:15px; margin-top:4px"></div>
+          <div id="ts-superfecta-cost" style="color:#7B3FBE;
+               font-size:13px; margin-top:2px"></div>
+        </div>
+        <button id="ts-log-superfecta" onclick="logExoticBet('superfecta')"
+          style="background:#7B3FBE; color:#fff; border:none;
+                 border-radius:6px; padding:8px 16px;
+                 cursor:pointer; font-size:13px;
+                 white-space:nowrap">
+          Log Superfecta
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /tab-trainerscout -->
 
 </div><!-- /main -->
@@ -3403,6 +3476,9 @@ async function runHorseSimulation() {
     status.style.color = 'var(--green)';
     status.textContent = `✓ Simulation complete — ${data.simulation_results.length} horses · source: ${data.data_source.toUpperCase()} · ${tsTrackCode} R${tsRaceNumber}`;
     document.getElementById('ts-results').style.display = 'block';
+    if (data.recommendation && data.recommendation.exotic_picks) {
+      renderExoticPicks(data.recommendation.exotic_picks);
+    }
 
   } catch (err) {
     status.style.color = '#e74c3c';
@@ -3487,6 +3563,90 @@ function _renderCarWashTable(results, rec, dataSource) {
   // Log This Bet button: only if not NO_PLAY
   const logBtn = document.getElementById('ts-log-btn');
   logBtn.style.display = recType !== 'NO_PLAY' ? 'inline-flex' : 'none';
+}
+
+// ── renderExoticPicks ─────────────────────────────────────────────
+function renderExoticPicks(exotic) {
+  if (!exotic) return;
+  const wrap = document.getElementById('ts-exotic-picks');
+  if (!wrap) return;
+  // Exacta
+  if (exotic.exacta_box) {
+    const horses = exotic.exacta_box.horses;
+    const posts = exotic.exacta_box.posts;
+    const horseLine = posts.map((p,i) => `#${p} ${horses[i]}`).join(' / ');
+    document.getElementById('ts-exacta-horses').textContent = horseLine;
+    document.getElementById('ts-exacta-cost').textContent =
+      `${exotic.exacta_box.combinations} combinations · $2 box = $${exotic.exacta_box.total_cost}`;
+    document.getElementById('ts-exotic-exacta').style.display = 'flex';
+  } else {
+    document.getElementById('ts-exotic-exacta').style.display = 'none';
+  }
+  // Trifecta
+  if (exotic.trifecta_box) {
+    const horses = exotic.trifecta_box.horses;
+    const posts = exotic.trifecta_box.posts;
+    const horseLine = posts.map((p,i) => `#${p} ${horses[i]}`).join(' / ');
+    document.getElementById('ts-trifecta-horses').textContent = horseLine;
+    document.getElementById('ts-trifecta-cost').textContent =
+      `${exotic.trifecta_box.combinations} combinations · $2 box = $${exotic.trifecta_box.total_cost}`;
+    document.getElementById('ts-exotic-trifecta').style.display = 'flex';
+  } else {
+    document.getElementById('ts-exotic-trifecta').style.display = 'none';
+  }
+  // Superfecta
+  if (exotic.superfecta_box) {
+    const horses = exotic.superfecta_box.horses;
+    const posts = exotic.superfecta_box.posts;
+    const horseLine = posts.map((p,i) => `#${p} ${horses[i]}`).join(' / ');
+    document.getElementById('ts-superfecta-horses').textContent = horseLine;
+    document.getElementById('ts-superfecta-cost').textContent =
+      `${exotic.superfecta_box.combinations} combinations · $2 box = $${exotic.superfecta_box.total_cost}`;
+    document.getElementById('ts-exotic-superfecta').style.display = 'flex';
+  } else {
+    document.getElementById('ts-exotic-superfecta').style.display = 'none';
+  }
+  wrap.style.display = 'block';
+  window._lastExoticPicks = exotic;
+}
+
+// ── logExoticBet ──────────────────────────────────────────────────
+function logExoticBet(type) {
+  const exotic = window._lastExoticPicks;
+  if (!exotic) return;
+  const track = document.getElementById('ts-track')?.value || '';
+  const race  = document.getElementById('ts-race')?.value  || '';
+  const today = new Date().toISOString().split('T')[0];
+  const typeMap = {
+    exacta:     exotic.exacta_box,
+    trifecta:   exotic.trifecta_box,
+    superfecta: exotic.superfecta_box
+  };
+  const pick = typeMap[type];
+  if (!pick) return;
+  const horseLine = pick.posts.map((p,i) => `#${p} ${pick.horses[i]}`).join(' / ');
+  const betLabel  = type.charAt(0).toUpperCase() + type.slice(1) + ' Box';
+  const notes     = `${betLabel} · ${track} R${race} · ${horseLine} · $2 box = $${pick.total_cost}`;
+  // Pre-fill Log Bet tab fields
+  const dateEl  = document.getElementById('bet-date');
+  const sportEl = document.getElementById('bet-sport');
+  const gameEl  = document.getElementById('bet-game');
+  const typeEl  = document.getElementById('bet-type');
+  const notesEl = document.getElementById('bet-notes');
+  const unitsEl = document.getElementById('bet-units');
+  if (dateEl)  dateEl.value  = today;
+  if (sportEl) sportEl.value = 'HORSE_RACING';
+  if (gameEl)  gameEl.value  = `${track} Race ${race}`;
+  if (typeEl)  typeEl.value  = betLabel.toUpperCase().replace(' ', '_');
+  if (notesEl) notesEl.value = notes;
+  if (unitsEl) unitsEl.value = (pick.total_cost / 100).toFixed(2);
+  // Switch to Log Bet tab
+  document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const logTab = document.getElementById('tab-logbet');
+  const logBtn = document.querySelector('[onclick*="tab-logbet"]');
+  if (logTab) logTab.style.display = 'block';
+  if (logBtn) logBtn.classList.add('active');
 }
 
 // ── logBetFromHorse ───────────────────────────────────────────────
