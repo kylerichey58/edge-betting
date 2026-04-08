@@ -312,6 +312,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
       <div class="chart-wrap" style="height:180px;position:relative">
         <canvas id="portfolioChart"></canvas>
       </div>
+      <div class="chart-wrap" style="height:180px;position:relative">
+        <canvas id="typeChart"></canvas>
+      </div>
       <div id="dash-portfolio-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);text-align:center"></div>
     </div>
     <div class="card">
@@ -1330,12 +1333,15 @@ function initCharts() {
   if(plChartInst) plChartInst.destroy();
   if(typeChartInst) typeChartInst.destroy();
 
-  // Build running P/L
+  // Build running P/L — BETS array is source of truth; localStorage saved bets supplement if present
+  const _lsSaved = JSON.parse(localStorage.getItem('edge_saved_bets') || 'null');
+  const _gradedSaved = _lsSaved ? _lsSaved.filter(b => b.result === 'WIN' || b.result === 'LOSS' || b.result === 'PUSH') : [];
+  const _betsForPL = [...BETS, ..._gradedSaved].filter(b => b.type !== 'PARLAY');
   let running = 0;
-  const plData = BETS.filter(b=>b.type!=='PARLAY').map(b => { running += b.pl; return parseFloat(running.toFixed(2)); });
-  const plLabels = BETS.filter(b=>b.type!=='PARLAY').map((b,i) => i+1);
+  const plData = _betsForPL.map(b => { running += (b.pl || 0); return parseFloat(running.toFixed(2)); });
+  const plLabels = _betsForPL.map((b, i) => i + 1);
 
-  const ctx1 = document.getElementById('plChart');
+  const ctx1 = document.getElementById('portfolioChart');
   if(!ctx1) return;
   plChartInst = new Chart(ctx1, {
     type: 'line',
@@ -1361,16 +1367,25 @@ function initCharts() {
     }
   });
 
-  // Bet type chart
+  // Win Rate by bet type — computed from BETS array; localStorage saved bets supplement if present
+  const _lsSavedWR = JSON.parse(localStorage.getItem('edge_saved_bets') || 'null');
+  const _gradedSavedWR = _lsSavedWR ? _lsSavedWR.filter(b => b.result === 'WIN' || b.result === 'LOSS') : [];
+  const _allBetsWR = [...BETS, ..._gradedSavedWR];
+  const _wrLabels = ['TOTAL', 'SPREAD', 'MONEYLINE'];
+  const _wrData = _wrLabels.map(t => {
+    const tb = _allBetsWR.filter(b => b.type === t && (b.result === 'WIN' || b.result === 'LOSS'));
+    return tb.length ? parseFloat((tb.filter(b => b.result === 'WIN').length / tb.length * 100).toFixed(1)) : 0;
+  });
+
   const ctx2 = document.getElementById('typeChart');
   if(!ctx2) return;
   typeChartInst = new Chart(ctx2, {
     type: 'bar',
     data: {
-      labels: ['TOTAL', 'SPREAD', 'MONEYLINE'],
+      labels: _wrLabels,
       datasets: [{
         label: 'Win Rate %',
-        data: [65.2, 58.6, 0],
+        data: _wrData,
         backgroundColor: ['#14b8a6', '#3b82f6', '#ef4444'],
         borderRadius: 4
       }]
