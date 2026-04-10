@@ -1,5 +1,5 @@
 # EDGE Intelligence Platform — Cowork Permanent Context
-*Last updated: April 7, 2026 | Horse Racing Wing: Production Ready*
+*Last updated: April 10, 2026 | Horse Racing Wing: Production Ready*
 
 ---
 
@@ -15,16 +15,16 @@ EDGE is a personal sports betting analytics platform built by Kyle Richey. Singl
 
 ---
 
-## CURRENT PLATFORM STATS (as of March 27, 2026)
+## CURRENT PLATFORM STATS (as of April 10, 2026)
 
 | Metric | Value |
 |--------|-------|
-| Overall Record | 33W-24L-1P (57.9% WR, +2.82u, +$282, 4.4% ROI) |
-| Totals | 15W-8L, 65.2% WR, +6.72u, +22.3% ROI — PRIMARY EDGE |
-| Spreads | 17W-12L, -1.56u, -6.0% ROI (juice drag) |
+| Overall Record | 29W-23L-1P (55.8% WR, -0.87u straight bets) |
+| Totals | 12W-8L, 60.0% WR, +2.94u, +11.4% ROI — PRIMARY EDGE |
+| Spreads | 16W-11L, -1.47u, -6.1% ROI (juice drag) |
 | Parlays | 1W-9L, -6.54u — ACTIVE but spread legs only |
-| Best Unit Tier | 0.5-1.0u at 63.4% WR / +6.55u |
-| Graded Bets in DB | 58 total in sports_betting.db |
+| Best Unit Tier | 0.5-1.0u at 57.1% WR / +5.86u |
+| Graded Bets in DB | 53 total in sports_betting.db |
 
 ---
 
@@ -38,7 +38,7 @@ C:\Users\kyler\Documents\Sportsbetting\
   .gitignore                 — excludes .env, sports_betting.db, _archive/
   CLAUDE.md                  — this file — Cowork permanent context
   BETTING_MODEL_GUIDE.md     — reference doc
-  sports_betting.db          — SQLite database, 58 graded bets
+  sports_betting.db          — SQLite database, 53 graded bets
   bet_tracker.py             — primary bet logging (8-option menu)
   bet_analytics.py           — terminal analytics dashboard
   bet_repair.py              — database repair utility
