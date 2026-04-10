@@ -33,6 +33,7 @@ BRISNET_RESULTS_URL = "https://www.brisnet.com/product/download/{date}/INR/USA/T
 # Maps DRF filename track codes → Brisnet results page track codes
 TRACK_CODE_MAP = {
     'GPX': 'GP',    # Gulfstream Park (GPX was old Calder code)
+    'OPX': 'OP',    # Oaklawn Park (DRF alternate code)
     'GP':  'GP',    # Gulfstream Park direct
     'MVR': 'MVR',   # Mahoning Valley
     'KEE': 'KEE',   # Keeneland
