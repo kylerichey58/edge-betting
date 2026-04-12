@@ -1,5 +1,5 @@
 # EDGE Intelligence Platform — Cowork Permanent Context
-*Last updated: April 10, 2026 | Horse Racing Wing: Production Ready*
+*Last updated: April 12, 2026 | Horse Racing Wing: Production Ready*
 
 ---
 
@@ -82,6 +82,7 @@ C:\Users\kyler\Documents\Sportsbetting\
 | VS Code Terminal | All git operations: git add, git commit, git push origin main --force | Never edits files — git only |
 
 **Git lock fix:** `del .git\HEAD.lock` and `del .git\index.lock`
+**Git lock cleanup (mandatory):** After every `git add` and `git commit` operation, always run `del .git\index.lock` to clean up the lock file left by the sandbox. The lock file causes a fatal error when Kyle runs `git push` from VS Code terminal. Cleaning it up after every stage is mandatory — never skip this step.
 **Local test:** Always test at localhost:8080 before checking GitHub Pages — CDN caches stale versions.
 **CLAUDE.md:** Only update when model rules fundamentally change.
 
@@ -257,6 +258,7 @@ All bets auto-graded, P&L updated, trainer stats built
 | LRL | LRL | Laurel |
 | PIM | PIM | Pimlico |
 | OP | OP | Oaklawn |
+| CTX | CT | Charles Town — **DRF uses CTX, Brisnet INR/results URL uses CT. Always use CT in results URL.** |
 
 ---
 
@@ -277,6 +279,40 @@ All bets auto-graded, P&L updated, trainer stats built
 - Unit sizing: 0.5-1.0u standard, 2.0u max for GEM + HIGH confidence only
 - Always localhost:8080 before GitHub Pages — CDN caches stale versions
 - Cowork never pushes to GitHub — all git ops in VS Code terminal only
+- **Always use `db_utils.safe_write()` for any DB write operation — never write directly to the NTFS mount path. Direct writes cause `disk I/O error` on `conn.commit()` and leave stranded `-journal` files that force rollback.**
+- **Read `PIPELINE_API.md` at every session start for all function signatures, return formats, and gotchas before touching any pipeline script.**
+- **STRESS TEST CLEANUP ORDER: Always print full bet-type P&L summary (Win/Place/Show/Exacta/Trifecta/Superfecta ROI by bet type) BEFORE calling delete_stress_test_bets(). Once deleted, exotic bet data is permanently unrecoverable. Print summary → confirm with Kyle → then delete.**
+- **CTX TRACK CODE BUG (FIXED APRIL 12): DRF code CTX maps to Brisnet results code CT (not CTX). build_results_url('CTX', date) was returning dead URLs. TRACK_CODE_MAP updated. Always verify CTX results fetch using CT.**
+
+---
+
+## BRISNET PP FILE DOWNLOAD WORKFLOW (PERMANENT — CONFIRMED APRIL 12)
+
+This is the only confirmed working path for downloading PP Single files.
+Do not attempt direct URL construction or API downloads — auth blocks them.
+Always follow these exact steps in order.
+
+**STEP 1** — Navigate to brisnet.com homepage (logged in as kylerichey58).
+**STEP 2** — Click the user account icon in the top right corner.
+**STEP 3** — Click "My Products" from the dropdown.
+**STEP 4** — On the My Products page, find "Brisnet Data Plan" on the RIGHT side panel. Click it.
+**STEP 5** — On the Data Plan page, find "PP Data Files (single)" and click "View".
+**STEP 6** — The file list loads as an AngularJS table. Find today's date column. All available tracks for today will show a blue download icon in that column.
+**STEP 7** — Click the download icon for each available track. Files download as `{track}{MMDD}k.zip` to `C:\Users\kyler\Downloads\`. Example: `aqu0412k.zip`, `gp0412k.zip`, `kee0412k.zip`
+**STEP 8** — After all tracks downloaded, copy all `*k.zip` files from Downloads to `C:\Users\kyler\Documents\SportsBetting\horse_racing_data\`
+**STEP 9** — Extract each ZIP: `from brisnet_fetcher import extract_zip` then `extract_zip('horse_racing_data/{track}{MMDD}k.zip', 'horse_racing_data/')`
+**STEP 10** — Confirm `.DRF` files are present for all tracks before running Car Wash.
+
+**TRACK NAMING NOTE:**
+- Filenames use lowercase Brisnet codes: `aqu`, `gp`, `kee`, `lrl`, `op`, `tam`
+- DRF parser expects uppercase: `AQU`, `GPX`, `KEE`, `LRL`, `OPX`, `TAM`
+- TRACK_CODE_MAP in results_fetcher.py handles all conversions
+- CTX (DRF) → CT (Brisnet results URL) — confirmed April 12
+
+**DO NOT attempt:**
+- Direct URL downloads (auth token blocked by sandbox proxy)
+- Python requests to brisnet.com (CIFS proxy blocks all external requests)
+- `*n.zip` files — entries format only, will NOT parse
 
 ---
 

@@ -7,6 +7,7 @@ Bet Tracker v3.2 — Full Schema-Matched Edition
 import sqlite3
 import os
 from datetime import datetime
+from db_utils import safe_write, safe_read
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sports_betting.db")
 
@@ -35,76 +36,74 @@ ALL_SPORT_CODES = {**{k: v[0] for k, v in ACTIVE_SPORTS.items()},
 # ─────────────────────────────────────────────
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    with safe_write() as conn:
+        c = conn.cursor()
 
-    # bets — matches your existing schema exactly
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS bets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            game_date TEXT,
-            sport TEXT DEFAULT 'NCAAM',
-            away_team TEXT,
-            home_team TEXT,
-            bet_type TEXT,
-            bet_selection TEXT,
-            odds TEXT,
-            units REAL,
-            confidence INTEGER,
-            reasoning TEXT,
-            game_id TEXT,
-            logged_date TEXT,
-            result TEXT DEFAULT 'PENDING',
-            profit_loss REAL DEFAULT 0,
-            final_score TEXT,
-            notes TEXT
-        )
-    """)
-    try:
-        c.execute("ALTER TABLE bets ADD COLUMN sport TEXT DEFAULT 'NCAAM'")
-    except sqlite3.OperationalError:
-        pass
+        # bets — matches your existing schema exactly
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS bets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_date TEXT,
+                sport TEXT DEFAULT 'NCAAM',
+                away_team TEXT,
+                home_team TEXT,
+                bet_type TEXT,
+                bet_selection TEXT,
+                odds TEXT,
+                units REAL,
+                confidence INTEGER,
+                reasoning TEXT,
+                game_id TEXT,
+                logged_date TEXT,
+                result TEXT DEFAULT 'PENDING',
+                profit_loss REAL DEFAULT 0,
+                final_score TEXT,
+                notes TEXT
+            )
+        """)
+        try:
+            c.execute("ALTER TABLE bets ADD COLUMN sport TEXT DEFAULT 'NCAAM'")
+        except sqlite3.OperationalError:
+            pass
 
-    # parlays — matches your existing schema exactly
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS parlays (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date TEXT,
-            name TEXT,
-            num_legs INTEGER,
-            combined_odds INTEGER,
-            units REAL,
-            confidence INTEGER,
-            reasoning TEXT,
-            result TEXT DEFAULT 'PENDING',
-            profit_loss REAL DEFAULT 0,
-            notes TEXT,
-            sport TEXT DEFAULT 'NCAAM'
-        )
-    """)
-    try:
-        c.execute("ALTER TABLE parlays ADD COLUMN sport TEXT DEFAULT 'NCAAM'")
-    except sqlite3.OperationalError:
-        pass
+        # parlays — matches your existing schema exactly
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS parlays (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT,
+                name TEXT,
+                num_legs INTEGER,
+                combined_odds INTEGER,
+                units REAL,
+                confidence INTEGER,
+                reasoning TEXT,
+                result TEXT DEFAULT 'PENDING',
+                profit_loss REAL DEFAULT 0,
+                notes TEXT,
+                sport TEXT DEFAULT 'NCAAM'
+            )
+        """)
+        try:
+            c.execute("ALTER TABLE parlays ADD COLUMN sport TEXT DEFAULT 'NCAAM'")
+        except sqlite3.OperationalError:
+            pass
 
-    # parlay_legs — matches your existing schema exactly
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS parlay_legs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            parlay_id INTEGER,
-            leg_number INTEGER,
-            sport TEXT,
-            game TEXT,
-            bet_type TEXT,
-            selection TEXT,
-            line TEXT,
-            result TEXT DEFAULT 'PENDING',
-            FOREIGN KEY (parlay_id) REFERENCES parlays(id)
-        )
-    """)
-
-    conn.commit()
-    conn.close()
+        # parlay_legs — matches your existing schema exactly
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS parlay_legs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parlay_id INTEGER,
+                leg_number INTEGER,
+                sport TEXT,
+                game TEXT,
+                bet_type TEXT,
+                selection TEXT,
+                line TEXT,
+                result TEXT DEFAULT 'PENDING',
+                FOREIGN KEY (parlay_id) REFERENCES parlays(id)
+            )
+        """)
+        # safe_write() context manager handles commit + writeback on exit
 
 
 # ─────────────────────────────────────────────
@@ -216,19 +215,18 @@ def log_straight_bet():
         print("  Cancelled.")
         return
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO bets (game_date, sport, away_team, home_team, bet_type,
-                          bet_selection, odds, units, confidence, reasoning,
-                          logged_date, result, profit_loss, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?)
-    """, (game_date, sport, away_team, home_team, bet_type,
-          bet_selection, odds, units, confidence, reasoning,
-          datetime.now().isoformat(), notes))
-    bet_id = c.lastrowid
-    conn.commit()
-    conn.close()
+    with safe_write() as conn:
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO bets (game_date, sport, away_team, home_team, bet_type,
+                              bet_selection, odds, units, confidence, reasoning,
+                              logged_date, result, profit_loss, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?)
+        """, (game_date, sport, away_team, home_team, bet_type,
+              bet_selection, odds, units, confidence, reasoning,
+              datetime.now().isoformat(), notes))
+        bet_id = c.lastrowid
+        # safe_write() context manager handles commit + writeback on exit
     print(f"\n  ✅ Bet #{bet_id} logged! ({sport} | {away_team} @ {home_team})")
 
 
@@ -300,25 +298,23 @@ def log_parlay():
         print("  Cancelled.")
         return
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        INSERT INTO parlays (date, sport, name, num_legs, combined_odds, units,
-                             confidence, reasoning, result, profit_loss, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?)
-    """, (date, sport, name, num_legs, combined_odds, units,
-          confidence, reasoning, notes))
-    parlay_id = c.lastrowid
-
-    for (leg_num, leg_sport, g, t, sel, ln) in legs:
+    with safe_write() as conn:
+        c = conn.cursor()
         c.execute("""
-            INSERT INTO parlay_legs
-                (parlay_id, leg_number, sport, game, bet_type, selection, line, result)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
-        """, (parlay_id, leg_num, leg_sport, g, t, sel, ln))
+            INSERT INTO parlays (date, sport, name, num_legs, combined_odds, units,
+                                 confidence, reasoning, result, profit_loss, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0, ?)
+        """, (date, sport, name, num_legs, combined_odds, units,
+              confidence, reasoning, notes))
+        parlay_id = c.lastrowid
 
-    conn.commit()
-    conn.close()
+        for (leg_num, leg_sport, g, t, sel, ln) in legs:
+            c.execute("""
+                INSERT INTO parlay_legs
+                    (parlay_id, leg_number, sport, game, bet_type, selection, line, result)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDING')
+            """, (parlay_id, leg_num, leg_sport, g, t, sel, ln))
+        # safe_write() context manager handles commit + writeback on exit
     print(f"\n  ✅ Parlay #{parlay_id} logged with {num_legs} legs! ({sport})")
 
 
@@ -358,23 +354,25 @@ def update_straight_bet():
 
     final_score = input("  Final score (e.g. 78-71, Enter to skip): ").strip()
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT units, odds FROM bets WHERE id=?", (bet_id,))
-    row = c.fetchone()
+    # Read phase — use safe_read for the SELECT
+    with safe_read() as rconn:
+        rc = rconn.cursor()
+        rc.execute("SELECT units, odds FROM bets WHERE id=?", (bet_id,))
+        row = rc.fetchone()
     if not row:
         print("  Bet not found.")
-        conn.close()
         return
 
-    units, odds = row
+    units, odds = row[0], row[1]
     pnl = calculate_pnl(units, odds, result)
 
-    c.execute("""
-        UPDATE bets SET result=?, profit_loss=?, final_score=? WHERE id=?
-    """, (result, pnl, final_score if final_score else None, bet_id))
-    conn.commit()
-    conn.close()
+    # Write phase — use safe_write for the UPDATE
+    with safe_write() as conn:
+        c = conn.cursor()
+        c.execute("""
+            UPDATE bets SET result=?, profit_loss=?, final_score=? WHERE id=?
+        """, (result, pnl, final_score if final_score else None, bet_id))
+        # safe_write() context manager handles commit + writeback on exit
 
     emoji = "✅" if result == "WIN" else ("↩️" if result == "PUSH" else "❌")
     print(f"\n  {emoji} Bet #{bet_id}: {result} | P/L: {pnl:+.2f}u")
@@ -410,29 +408,33 @@ def update_parlay():
     except ValueError:
         return
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, leg_number, game, bet_type, selection
-        FROM parlay_legs
-        WHERE parlay_id=? AND result='PENDING'
-        ORDER BY leg_number
-    """, (parlay_id,))
-    legs = c.fetchall()
+    # Read phase — fetch legs and parlay details before user input
+    with safe_read() as rconn:
+        rc = rconn.cursor()
+        rc.execute("""
+            SELECT id, leg_number, game, bet_type, selection
+            FROM parlay_legs
+            WHERE parlay_id=? AND result='PENDING'
+            ORDER BY leg_number
+        """, (parlay_id,))
+        legs = rc.fetchall()
+        if not legs:
+            print("  No pending legs found for this parlay.")
+            return
+        rc.execute("SELECT units, combined_odds FROM parlays WHERE id=?", (parlay_id,))
+        parlay_row = rc.fetchone()
 
-    if not legs:
-        print("  No pending legs found for this parlay.")
-        conn.close()
-        return
-
+    # Collect user input for each leg (outside any DB connection)
+    leg_grades = []  # list of (leg_id, leg_result)
     all_results = []
     print(f"\n  Grade each leg:")
-    for lid, leg_num, game, bet_type, selection in legs:
+    for leg in legs:
+        lid, leg_num, game, bet_type, selection = leg[0], leg[1], leg[2], leg[3], leg[4]
         print(f"\n    Leg {leg_num}: [{bet_type}] {selection} — {game}")
         print("    Result: [1] WIN  [2] LOSS  [3] PUSH")
         leg_result = {"1": "WIN", "2": "LOSS", "3": "PUSH"}.get(
             input("    Select: ").strip(), "LOSS")
-        c.execute("UPDATE parlay_legs SET result=? WHERE id=?", (leg_result, lid))
+        leg_grades.append((lid, leg_result))
         all_results.append(leg_result)
 
     if "LOSS" in all_results:
@@ -442,14 +444,17 @@ def update_parlay():
     else:
         parlay_result = "WIN"
 
-    c.execute("SELECT units, combined_odds FROM parlays WHERE id=?", (parlay_id,))
-    units, combined_odds = c.fetchone()
+    units, combined_odds = parlay_row[0], parlay_row[1]
     pnl = calculate_pnl(units, str(combined_odds), parlay_result)
 
-    c.execute("UPDATE parlays SET result=?, profit_loss=? WHERE id=?",
-              (parlay_result, pnl, parlay_id))
-    conn.commit()
-    conn.close()
+    # Write phase — update all rows in a single safe_write() transaction
+    with safe_write() as conn:
+        c = conn.cursor()
+        for lid, leg_result in leg_grades:
+            c.execute("UPDATE parlay_legs SET result=? WHERE id=?", (leg_result, lid))
+        c.execute("UPDATE parlays SET result=?, profit_loss=? WHERE id=?",
+                  (parlay_result, pnl, parlay_id))
+        # safe_write() context manager handles commit + writeback on exit
 
     emoji = "✅" if parlay_result == "WIN" else "❌"
     print(f"\n  {emoji} Parlay #{parlay_id}: {parlay_result} | P/L: {pnl:+.2f}u")

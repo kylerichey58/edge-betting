@@ -10,13 +10,24 @@ AUTO NO-PLAY:            M09 = 0 — veto, no exceptions
 M10 and M11 are multiplier metrics — they amplify signal but cannot
 override the M09 veto.
 
+ARM2026 Integration (added April 11, 2026):
+  - BEYER_PARS: par speed figures by (track, surface, race_type) from p.181
+    Used in M01 to calibrate trajectory against class par.
+  - STAKES_RATINGS: NARC + Beyer Index ratings from pp.90, 223 (reference lookup)
+  - GRADE_CHANGES_2026: grade changes for 2026 from p.241 (reference lookup)
+  - TRACK_CLOCKINGS: fastest times per distance/track from pp.1203-1215 (reference)
+  - M07: MEET_{track} fallback using ARM-seeded trainer win% data
+  - M08: jockey_stats DB fallback when DRF meet starts < 5
+
 Usage:
     from horse_racing_scorer import score_horse, score_race
     result  = score_horse(horse_dict, field_horses, market_odds=4.5)
     results = score_race(horses_list)
 """
 
+import csv
 import sqlite3
+import statistics
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -40,6 +51,146 @@ CLASS_RANK = {
     "G2":  8,   # Grade 2
     "G1":  9,   # Grade 1
 }
+
+
+# ---------------------------------------------------------------------------
+# ARM2026 DATA TABLES  (loaded at import, graceful fallback if files missing)
+# ---------------------------------------------------------------------------
+
+def _arm_class_to_edge(class_info: str) -> str:
+    """Map ARM Beyer Par class_info string to EDGE race_type code."""
+    ci = class_info.upper()
+    if ci.startswith("MCL"):            return "MCL"
+    if ci.startswith("MSW"):            return "MSW"
+    if ci.startswith("GSTK-G1"):        return "G1"
+    if ci.startswith("GSTK-G2"):        return "G2"
+    if ci.startswith("GSTK-G3"):        return "G3"
+    if ci.startswith("STK"):            return "STK"
+    if ci.startswith("AN") or ci.startswith("ACN"):  return "ALW"
+    # CLM, CN2, CN3, CN4, Cond CLM, SA (Santa Anita claiming notation), etc.
+    return "CLM"
+
+
+def _load_beyer_pars() -> dict:
+    """
+    Returns dict: {(track_code, surface, race_type): median_par}
+    Built from arm_beyer_pars.csv.  Falls back to {} if file missing.
+    """
+    path = SCRIPT_DIR / "arm_beyer_pars.csv"
+    if not path.exists():
+        return {}
+    raw: dict = {}   # {key: [par_values]}
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                track  = row["track_code"].strip().upper()
+                surf   = row["surface"].strip().upper()
+                rtype  = _arm_class_to_edge(row["class_info"])
+                try:
+                    par = float(row["par"])
+                except (ValueError, KeyError):
+                    continue
+                key = (track, surf, rtype)
+                raw.setdefault(key, []).append(par)
+        return {k: statistics.median(v) for k, v in raw.items()}
+    except Exception:
+        return {}
+
+
+def _load_stakes_ratings() -> dict:
+    """
+    Returns dict: {race_name_upper: {grade, narc_rating, beyer_2025, beyer_10yr_avg}}
+    Built from arm_stakes_ratings.csv.  Reference use only — no auto-scoring.
+    """
+    path = SCRIPT_DIR / "arm_stakes_ratings.csv"
+    if not path.exists():
+        return {}
+    result = {}
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                name = row.get("race_name", "").strip().upper()
+                if not name:
+                    continue
+                result[name] = {
+                    "grade":        row.get("grade", ""),
+                    "narc_rating":  row.get("narc_rating", ""),
+                    "beyer_2025":   row.get("beyer_2025", ""),
+                    "beyer_10yr":   row.get("beyer_10yr_avg", ""),
+                    "track_code":   row.get("track_code", ""),
+                }
+        return result
+    except Exception:
+        return {}
+
+
+def _load_grade_changes() -> dict:
+    """
+    Returns dict: {race_name_upper: {old_grade, new_grade, direction, track_name}}
+    direction = 'UPGRADED' (promoted) or 'DOWNGRADED' (demoted)
+    Built from arm_grade_changes_2026.csv.  Reference use only — no auto-scoring.
+    CSV columns: race_name, age_sex, track_name, grade_2025, grade_2026, direction
+    """
+    path = SCRIPT_DIR / "arm_grade_changes_2026.csv"
+    if not path.exists():
+        return {}
+    result = {}
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                name  = row.get("race_name", "").strip().upper()
+                old_g = row.get("grade_2025", "").strip()
+                new_g = row.get("grade_2026", "").strip()
+                if not name or not old_g or not new_g:
+                    continue
+                # Filter out non-numeric grade entries (e.g. "Not run")
+                if not old_g.isdigit() or not new_g.isdigit():
+                    continue
+                direction = row.get("direction", "").strip().upper()
+                result[name] = {
+                    "old_grade":  f"G{old_g}",
+                    "new_grade":  f"G{new_g}",
+                    "direction":  direction,
+                    "track_name": row.get("track_name", ""),
+                    "age_sex":    row.get("age_sex", ""),
+                }
+        return result
+    except Exception:
+        return {}
+
+
+def _load_track_clockings() -> dict:
+    """
+    Returns dict: {(track_code, surface, distance_f): win_time_secs}
+    Built from arm_track_clockings.csv.  Reference use only.
+    """
+    path = SCRIPT_DIR / "arm_track_clockings.csv"
+    if not path.exists():
+        return {}
+    result = {}
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                track = row.get("track_code", "").strip().upper()
+                surf  = row.get("surface", "").strip().upper()
+                dist  = row.get("distance_f", "").strip()
+                secs  = row.get("win_time_secs", "").strip()
+                if not track or not surf or not dist or not secs:
+                    continue
+                try:
+                    result[(track, surf, dist)] = float(secs)
+                except ValueError:
+                    continue
+        return result
+    except Exception:
+        return {}
+
+
+# Load once at import — ~milliseconds, graceful on missing files
+BEYER_PARS       = _load_beyer_pars()
+STAKES_RATINGS   = _load_stakes_ratings()
+GRADE_CHANGES_2026 = _load_grade_changes()
+TRACK_CLOCKINGS  = _load_track_clockings()
 
 
 # ---------------------------------------------------------------------------
@@ -77,11 +228,20 @@ def _safe_int(val, default=0):
 
 def _m01(horse):
     """
-    3 = all 3 figures improving (most recent > middle > oldest)
-    2 = flat or one improvement
-    1 = declining; also used when only 1 figure available
-    0 = no figures at all (all None)
-    First-timer (empty list) → 1 neutral per EDGE rules
+    Base trajectory score (0–3), then optionally calibrated against
+    Beyer Par for today's class/track/surface (ARM2026 p.181).
+
+    Trajectory:
+      3 = all 3 figures improving (most recent > middle > oldest)
+      2 = flat or one improvement
+      1 = declining; also used when only 1 figure available
+      0 = no figures at all (all None)
+      First-timer (empty list) → 1 neutral per EDGE rules
+
+    Par calibration (applied after trajectory, clamped to [0, 3]):
+      best_fig >= par + 3  → score + 1  (running above par for this class)
+      best_fig <= par - 5  → score - 1  (running below par for this class)
+      Otherwise            → no adjustment
     """
     raw = horse.get("speed_figures_last3") or []
     figs = [f for f in raw if f is not None]
@@ -92,21 +252,37 @@ def _m01(horse):
         return 0                    # figures listed but all blank
 
     if len(figs) == 1:
-        return 1                    # single figure, can't assess trend
+        score = 1                   # single figure, can't assess trend
+    elif len(figs) == 2:
+        if figs[0] > figs[1]:   score = 2   # improving
+        elif figs[0] == figs[1]: score = 2  # flat
+        else:                    score = 1  # declining
+    else:
+        # len >= 3
+        if figs[0] > figs[1] > figs[2]:
+            score = 3                           # all improving
+        elif figs[0] > figs[1] or figs[1] > figs[2]:
+            score = 2                           # one step up
+        elif figs[0] == figs[1] == figs[2]:
+            score = 2                           # perfectly flat
+        else:
+            score = 1                           # declining
 
-    if len(figs) == 2:
-        if figs[0] > figs[1]:   return 2   # improving
-        if figs[0] == figs[1]:  return 2   # flat
-        return 1                            # declining
+    # ── ARM2026 Beyer Par calibration ────────────────────────────────────
+    track     = (horse.get("track") or "").upper()
+    surface   = (horse.get("surface") or "").upper()
+    race_type = (horse.get("race_type") or "").upper()
+    best_fig  = max(figs) if figs else None
 
-    # len >= 3
-    if figs[0] > figs[1] > figs[2]:
-        return 3                            # all improving
-    if figs[0] > figs[1] or figs[1] > figs[2]:
-        return 2                            # one step up
-    if figs[0] == figs[1] == figs[2]:
-        return 2                            # perfectly flat
-    return 1                                # declining
+    if BEYER_PARS and track and surface and race_type and best_fig is not None:
+        par = BEYER_PARS.get((track, surface, race_type))
+        if par is not None:
+            if best_fig >= par + 3:
+                score = min(3, score + 1)   # running above par — bonus
+            elif best_fig <= par - 5:
+                score = max(0, score - 1)   # running below par — penalty
+
+    return score
 
 
 # ---------------------------------------------------------------------------
@@ -269,10 +445,27 @@ def _m06(horse):
 # M07  Situational Trainer ROI  (queries sports_betting.db)
 # ---------------------------------------------------------------------------
 
+def _m07_score_from_row(starts, wins, roi):
+    """Shared scoring logic for both primary and MEET fallback M07 lookup."""
+    if starts < 10:
+        return 2 if (roi or 0) > 0 else 1   # small sample — ROI-direction score
+    win_rate = wins / starts if starts > 0 else 0
+    if win_rate >= 0.20: return 3
+    if win_rate >= 0.15: return 2
+    if win_rate >= 0.10: return 1
+    return 0
+
+
 def _m07(horse, db_path=None):
     """
     Situation key: '{TrainerLastName}_{racetype}_{surface}'
-    Matches trainer_situational_stats table.
+    Matches trainer_situational_stats table (live race-graded rows).
+
+    ARM2026 MEET fallback (April 11, 2026):
+    When primary situation lookup returns no record, checks ARM-seeded
+    MEET_{track} rows using trainer last name (parts[0] of DRF format,
+    e.g. 'COX BRAD' → 'COX').  This activates M07 for known trainers
+    at target tracks from day one of live operation.
 
     3 = win rate ≥ 20% with 10+ starts
     2 = win rate 15–20% OR < 10 starts with positive ROI
@@ -286,6 +479,7 @@ def _m07(horse, db_path=None):
     trainer_full = (horse.get("trainer") or "").strip()
     race_type    = (horse.get("race_type") or "").upper()
     surface      = (horse.get("surface") or "").upper()
+    track        = (horse.get("track") or "").upper()
 
     parts        = trainer_full.split()
     trainer_last = parts[-1] if parts else ""
@@ -297,6 +491,8 @@ def _m07(horse, db_path=None):
     try:
         conn = sqlite3.connect(str(db_path), timeout=5)
         cur  = conn.cursor()
+
+        # ── Primary lookup: live race-graded situational stats ────────────
         cur.execute(
             "SELECT starts, wins, roi "
             "FROM trainer_situational_stats "
@@ -304,20 +500,31 @@ def _m07(horse, db_path=None):
             (trainer_full, situation),
         )
         row = cur.fetchone()
+
+        if row is not None:
+            conn.close()
+            return _m07_score_from_row(row[0], row[1], row[2])
+
+        # ── MEET fallback: ARM2026-seeded meet win% by track ──────────────
+        # ARM rows stored as trainer_name = last-name uppercase (e.g. 'COX')
+        # DRF trainer_full = 'COX BRAD' → parts[0] = 'COX' (last name)
+        if track:
+            trainer_last_drf = parts[0].upper() if parts else ""
+            meet_situation   = f"MEET_{track}"
+            if trainer_last_drf:
+                cur.execute(
+                    "SELECT starts, wins, roi "
+                    "FROM trainer_situational_stats "
+                    "WHERE trainer_name = ? AND situation = ?",
+                    (trainer_last_drf, meet_situation),
+                )
+                meet_row = cur.fetchone()
+                if meet_row is not None:
+                    conn.close()
+                    return _m07_score_from_row(meet_row[0], meet_row[1], meet_row[2])
+
         conn.close()
-
-        if row is None:
-            return 1    # no record yet — neutral per EDGE rules
-
-        starts, wins, roi = row
-        if starts < 10:
-            return 2 if (roi or 0) > 0 else 1   # small sample — ROI-direction score
-
-        win_rate = wins / starts if starts > 0 else 0
-        if win_rate >= 0.20: return 3
-        if win_rate >= 0.15: return 2
-        if win_rate >= 0.10: return 1
-        return 0
+        return 1    # no record — neutral per EDGE rules
 
     except Exception:
         return 1    # DB error → neutral, never block on data failure
@@ -327,29 +534,68 @@ def _m07(horse, db_path=None):
 # M08  Jockey Switch Signal
 # ---------------------------------------------------------------------------
 
-def _m08(horse):
+def _m08(horse, db_path=None):
     """
     Scores current jockey's meet win% as a proxy for upgrade/downgrade signal.
     Full switch detection (vs previous jockey) requires jockey_pp_names in the
     horse dict — a future parser extension.
 
+    Primary source: DRF fields jockey_meet_starts / jockey_meet_wins.
+    ARM2026 fallback (April 11, 2026): when DRF meet starts < 5,
+    queries jockey_stats table using jockey last name + track code.
+    Jockey last name = parts[0] of DRF format ('FRANCO MANUEL' → 'FRANCO').
+
     Current win% ≥ 20%   → 3 (elite jockey / upgrade signal)
     Current win% 15–19%  → 2 (quality jockey / same-jockey retained quality)
     Current win% 10–14%  → 1 (average)
     Current win% < 10%   → 0 (downgrade / weak jockey)
-    Fewer than 5 starts  → 1 (insufficient sample)
+    Fewer than 5 starts  → 1 (insufficient sample — tries ARM fallback first)
     """
+    if db_path is None:
+        db_path = DB_PATH
+
     starts = _safe_int(horse.get("jockey_meet_starts"), 0)
     wins   = _safe_int(horse.get("jockey_meet_wins"),   0)
 
-    if starts < 5:
-        return 1    # too small a sample to trust
+    # ── Use DRF live data if sample is adequate ───────────────────────────
+    if starts >= 5:
+        pct = wins / starts
+        if pct >= 0.20: return 3
+        if pct >= 0.15: return 2
+        if pct >= 0.10: return 1
+        return 0
 
-    pct = wins / starts
-    if pct >= 0.20: return 3
-    if pct >= 0.15: return 2
-    if pct >= 0.10: return 1
-    return 0
+    # ── ARM2026 jockey_stats fallback ─────────────────────────────────────
+    # DRF jockey format: 'FRANCO MANUEL' (LAST FIRST [INIT])
+    # ARM stored as last name uppercase: 'FRANCO'
+    jockey_full = (horse.get("jockey") or "").strip()
+    track       = (horse.get("track") or "").upper()
+
+    if jockey_full and track:
+        jockey_parts     = jockey_full.split()
+        jockey_last_name = jockey_parts[0].upper() if jockey_parts else ""
+        if jockey_last_name:
+            try:
+                conn = sqlite3.connect(str(db_path), timeout=5)
+                cur  = conn.cursor()
+                cur.execute(
+                    "SELECT wins, win_pct, starts FROM jockey_stats "
+                    "WHERE jockey_name = ? AND track_code = ?",
+                    (jockey_last_name, track),
+                )
+                row = cur.fetchone()
+                conn.close()
+                if row is not None:
+                    arm_wins, arm_pct, arm_starts = row
+                    if arm_starts and arm_starts >= 5:
+                        if arm_pct >= 0.20: return 3
+                        if arm_pct >= 0.15: return 2
+                        if arm_pct >= 0.10: return 1
+                        return 0
+            except Exception:
+                pass    # DB error → fall through to neutral
+
+    return 1    # insufficient sample — neutral
 
 
 # ---------------------------------------------------------------------------

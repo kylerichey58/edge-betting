@@ -15,6 +15,7 @@ import sys
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from db_utils import safe_write
 
 # ---------------------------------------------------------------------------
 # PATHS
@@ -681,22 +682,21 @@ def fetch_import_results_file(filepath: str):
 
         # Optional: update closing_odds in horse_race_analyses
         try:
-            conn = sqlite3.connect(DB_PATH)
-            cur  = conn.cursor()
-            # Check column exists
-            cur.execute("PRAGMA table_info(horse_race_analyses)")
-            cols = [r[1] for r in cur.fetchall()]
-            if 'closing_odds' in cols:
-                for h in horses:
-                    cur.execute("""
-                        UPDATE horse_race_analyses
-                           SET closing_odds = ?
-                         WHERE UPPER(horse_name) = UPPER(?)
-                           AND track = ?
-                           AND race_number = ?
-                    """, (h['final_odds'], h['name'], track_code, race_number))
-                conn.commit()
-            conn.close()
+            with safe_write() as conn:
+                cur = conn.cursor()
+                # Check column exists
+                cur.execute("PRAGMA table_info(horse_race_analyses)")
+                cols = [r[1] for r in cur.fetchall()]
+                if 'closing_odds' in cols:
+                    for h in horses:
+                        cur.execute("""
+                            UPDATE horse_race_analyses
+                               SET closing_odds = ?
+                             WHERE UPPER(horse_name) = UPPER(?)
+                               AND track = ?
+                               AND race_number = ?
+                        """, (h['final_odds'], h['name'], track_code, race_number))
+                # safe_write() handles commit + writeback on exit
         except Exception:
             pass  # Silently skip — never crash on optional update
 
