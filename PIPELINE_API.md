@@ -1,5 +1,5 @@
 # EDGE Intelligence Platform — Pipeline API Reference
-**Last Updated:** April 10, 2026 | Read this at session start. Every function signature, return format, and gotcha is documented here. Never probe function names by trial and error — check here first.
+**Last Updated:** April 24, 2026 (CTX→CT gotcha added) | Read this at session start. Every function signature, return format, and gotcha is documented here. Never probe function names by trial and error — check here first.
 
 ---
 
@@ -8,8 +8,8 @@
 ```python
 from brisnet_fetcher import fetch_race_file, extract_zip, get_available_tracks
 from horse_racing_parser import parse_race_file
-from horse_racing_scorer import score_race
-from horse_racing_simulator import run_simulation, generate_recommendation
+from horse_racing_scorer import score_race, generate_recommendation
+from horse_racing_simulator import simulate_race
 from horse_racing_grader import grade_race, update_trainer_stats, get_leaderboard
 from db_utils import safe_write, safe_read, verify_db, get_pending_stress_test_count, delete_stress_test_bets
 from results_fetcher import build_results_url, scan_and_grade_all, fetch_import_results_file
@@ -21,8 +21,7 @@ from results_fetcher import build_results_url, scan_and_grade_all, fetch_import_
 
 | Gotcha | Detail |
 |--------|--------|
-| **`generate_recommendation`** | NOT `get_recommendation` — lives in `horse_racing_simulator`, NOT `horse_racing_scorer` |
-| **`run_simulation`** | NOT `simulate_race` — this has caused trial-and-error every session |
+| **`generate_recommendation`** | NOT `get_recommendation` — this has caused trial-and-error every session |
 | **`parse_race_file` return format** | Returns `{race_num: [horse_dicts]}` — a dict keyed by race number, NOT a flat list |
 | **`score_race` signature** | NO `m05_override` param as of April 9 — M05 is fully automated, passing it will error |
 | **`*k.zip` only** | `*n.zip` = entries format only, will NOT parse. Always `*k.zip` (PP Single) |
@@ -30,6 +29,7 @@ from results_fetcher import build_results_url, scan_and_grade_all, fetch_import_
 | **M09 = 0 is absolute veto** | No exceptions. Do not log any bet where M09 = 0 regardless of composite score |
 | **OPX → OP** | TRACK_CODE_MAP in results_fetcher.py — DRF code OPX maps to Brisnet code OP |
 | **GPX → GP** | Same pattern — Gulfstream DRF code GPX maps to Brisnet code GP |
+| **CTX → CT** | Charles Town — DRF code CTX maps to Brisnet code CT. Fixed April 12 after 18 voided bets on April 11. |
 
 ---
 
@@ -142,16 +142,34 @@ scored_horses = score_race(horses, m05_override=2)
 }
 ```
 
+### `generate_recommendation(scored_horses)`
+```python
+generate_recommendation(scored_horses: list[dict]) -> dict
+```
+**⚠️ Function is `generate_recommendation` NOT `get_recommendation`.**
+
+Takes the scored list for a race. Returns recommendation dict.
+```python
+{
+    'top_pick': dict,           # highest scoring horse
+    'exacta': [dict, dict],     # top 2 by score
+    'trifecta': [dict, dict, dict],
+    'superfecta': [dict, dict, dict, dict],  # only if field >= 7
+    'pace_scenario': str,
+    'gem_count': int,
+    'recommendation_text': str,
+    'play': bool,               # False if top pick has M09=0
+}
+```
+
 ---
 
 ## horse_racing_simulator.py
 
-### `run_simulation(scored_horses, trials)`
+### `simulate_race(scored_horses, trials)`
 ```python
-run_simulation(scored_horses: list[dict], trials: int = 10000) -> list[dict]
+simulate_race(scored_horses: list[dict], trials: int = 10000) -> list[dict]
 ```
-**⚠️ Function is `run_simulation` NOT `simulate_race`.**
-
 Runs Monte Carlo simulation. Returns list of result dicts — one per horse — sorted by win probability descending.
 ```python
 {
@@ -164,26 +182,6 @@ Runs Monte Carlo simulation. Returns list of result dicts — one per horse — 
     'morning_line_odds': float,
     'value': str,          # 'OVERLAY', 'FAIR', 'UNDERLAY'
     'flag': str,
-}
-```
-
-### `generate_recommendation(sim_results)`
-```python
-generate_recommendation(sim_results: list[dict]) -> dict
-```
-**⚠️ Function is `generate_recommendation` NOT `get_recommendation`. Lives in `horse_racing_simulator`, NOT `horse_racing_scorer`.**
-
-Takes the simulation result list for a race. Returns recommendation dict.
-```python
-{
-    'top_pick': dict,           # highest win_pct horse
-    'exacta': [dict, dict],     # top 2 by win_pct
-    'trifecta': [dict, dict, dict],
-    'superfecta': [dict, dict, dict, dict],  # only if field >= 7
-    'pace_scenario': str,
-    'gem_count': int,
-    'recommendation_text': str,
-    'play': bool,               # False if top pick has M09=0
 }
 ```
 
@@ -293,21 +291,13 @@ delete_stress_test_bets() -> int
 
 ## BRISNET CHROME WORKFLOW
 
-### Download Flow (Cowork Chrome) — CONFIRMED APRIL 12
-1. Navigate to `https://www.brisnet.com` (must be logged in as kylerichey58)
-2. Click user account icon (top right) → click **"My Products"**
-3. Find **"Brisnet Data Plan"** on the RIGHT side panel → click it
-4. Click **"PP Data Files (single)"** → click **"View"**
-5. AngularJS file table loads — find today's date column
-6. Click the blue download icon for each available track
-   Files land in `C:\Users\kyler\Downloads\` as `{track}{MMDD}k.zip`
-7. Copy all `*k.zip` files to `horse_racing_data\`
-8. Run `extract_zip()` on each — `.DRF` files extracted, ready to parse
-9. **Never download `*n.zip`** — entries format only, will not parse
-
-**NOTE:** Direct URL construction and Python requests are blocked by sandbox
-proxy for authenticated Brisnet pages. Browser download is the only path.
-The old `cgi-bin/static.cgi?page=datalist` URL is dead — redirects to home.
+### Download Flow (Cowork Chrome)
+1. Navigate to `https://www.brisnet.com/cgi-bin/static.cgi?page=datalist`
+2. Click **PP Data Files (single)**
+3. Find target date row → click `*k.zip` link for each track (NOT `*n.zip`)
+4. Files land in `C:\Users\kyler\Downloads\`
+5. Move all `*k.zip` files to `C:\Users\kyler\Documents\SportsBetting\horse_racing_data\`
+6. Run `extract_zip()` on each — or call `brisnet_fetcher.py` which handles auto-extraction
 
 ### Results Fetch Flow (Cowork Chrome)
 1. Build URL: `build_results_url(track_code, date_str)`
