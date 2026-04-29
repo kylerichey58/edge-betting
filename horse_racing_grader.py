@@ -20,7 +20,6 @@ Situation key format (mirrors CLAUDE.md):
     Layoff 2: TrainerLastName_2nd_off_layoff     e.g. Cox_2nd_off_layoff  (45–89 days out)
 """
 
-import re
 import sqlite3
 from datetime import datetime, date
 from pathlib import Path
@@ -39,14 +38,6 @@ _PNL = {
     ("WIN_BET",      "PLACE"): -1.0,
     ("WIN_BET",      "SHOW"):  -1.0,
     ("WIN_BET",      "OUT"):   -1.0,
-    ("EXACTA_BOX",   "WIN"):   +8.0,
-    ("EXACTA_BOX",   "PLACE"): +8.0,
-    ("EXACTA_BOX",   "SHOW"):  -1.0,
-    ("EXACTA_BOX",   "OUT"):   -1.0,
-    ("TRIFECTA_KEY", "WIN"):   +15.0,
-    ("TRIFECTA_KEY", "PLACE"): +15.0,
-    ("TRIFECTA_KEY", "SHOW"):  +15.0,
-    ("TRIFECTA_KEY", "OUT"):   -1.0,
     ("NO_PLAY",      "WIN"):    0.0,
     ("NO_PLAY",      "PLACE"):  0.0,
     ("NO_PLAY",      "SHOW"):   0.0,
@@ -208,133 +199,6 @@ def _ensure_horse_tables(cur: sqlite3.Cursor) -> None:
 
 
 # ---------------------------------------------------------------------------
-# EXOTIC BET HELPERS (box bet grading)
-# ---------------------------------------------------------------------------
-
-def _parse_exotic_horses(notes: str) -> list:
-    """
-    Extract horse names from exotic bet notes string.
-    Format: 'EXACTA Box · GPX R3 · #3 HORSE A / #1 HORSE B · $2 box = $4'
-    Returns list of uppercase horse names.
-    """
-    if not notes:
-        return []
-    parts = notes.split(" · ")
-    if len(parts) < 3:
-        return []
-    horse_section = parts[2].strip()
-    horses = []
-    for entry in horse_section.split(" / "):
-        entry = entry.strip()
-        m = re.match(r"^#\d+\s+(.+)", entry)
-        if m:
-            horses.append(m.group(1).strip().upper())
-        elif entry:
-            horses.append(entry.upper())
-    return horses
-
-
-def _parse_exotic_horse_line(notes: str) -> str:
-    """
-    Extract full horse line (e.g. '#3 HORSE A / #1 HORSE B') from notes.
-    Format: 'EXACTA Box · GPX R3 · #3 HORSE A / #1 HORSE B · $2 box = $4'
-    """
-    if not notes:
-        return ""
-    parts = notes.split(" · ")
-    return parts[2].strip() if len(parts) >= 3 else ""
-
-
-def _check_exotic_hit(bet_type: str, boxed_horses: list, results_list: list) -> bool:
-    """
-    Return True if all boxed horses finished in the required top-N positions
-    (order doesn't matter — it's a box bet).
-
-    EXACTA_BOX  → top 2 must match
-    TRIFECTA_BOX → top 3 must match
-    SUPERFECTA_BOX → top 4 must match
-    """
-    n_map = {"EXACTA_BOX": 2, "TRIFECTA_BOX": 3, "SUPERFECTA_BOX": 4}
-    n = n_map.get(bet_type.upper())
-    if n is None or len(results_list) < n or len(boxed_horses) < n:
-        return False
-    top_n   = {name.upper().strip() for name in results_list[:n]}
-    boxed   = {h.upper().strip() for h in boxed_horses}
-    return top_n == boxed
-
-
-def _grade_exotic_bets(cur: sqlite3.Cursor, track_upper: str, race_number: int,
-                       results_list: list) -> list:
-    """
-    Query the bets table for ungraded EXACTA_BOX / TRIFECTA_BOX / SUPERFECTA_BOX bets
-    for this track + race, grade each one, update the row, and return summary lines.
-
-    Called inside grade_race() in both the early-return and normal-return paths —
-    the caller commits the connection after this function returns.
-    """
-    race_num_str = f"Race {race_number}"
-    cur.execute(
-        """
-        SELECT id, bet_type, units, notes
-        FROM bets
-        WHERE UPPER(away_team) = ?
-          AND home_team        = ?
-          AND bet_type IN ('EXACTA_BOX', 'TRIFECTA_BOX', 'SUPERFECTA_BOX')
-          AND (result = 'PENDING' OR result IS NULL)
-        """,
-        (track_upper, race_num_str),
-    )
-    exotic_rows = cur.fetchall()
-    summary = []
-
-    for ex in exotic_rows:
-        ex_id    = ex["id"]
-        ex_type  = (ex["bet_type"] or "").upper()
-        ex_units = float(ex["units"] or 0.0)
-        ex_notes = ex["notes"] or ""
-
-        boxed_horses = _parse_exotic_horses(ex_notes)
-        horse_line   = _parse_exotic_horse_line(ex_notes)
-
-        if not boxed_horses:
-            continue
-
-        hit = _check_exotic_hit(ex_type, boxed_horses, results_list)
-
-        if hit:
-            ex_result    = "WIN"
-            # Payout unknown until Kyle enters it — deduct cost as placeholder
-            ex_pnl       = -ex_units
-            updated_notes = ex_notes + " | BOX HIT — enter payout manually"
-        else:
-            ex_result    = "LOSS"
-            ex_pnl       = -ex_units
-            updated_notes = ex_notes
-
-        cur.execute(
-            "UPDATE bets SET result=?, profit_loss=?, notes=? WHERE id=?",
-            (ex_result, ex_pnl, updated_notes, ex_id),
-        )
-
-        display_type   = ex_type.replace("_", " ")
-        display_horses = horse_line or " / ".join(boxed_horses)
-        dollar         = int(round(ex_units * 100))
-
-        if hit:
-            summary.append(
-                f"  {display_type:<16}  {display_horses}  "
-                f"→ HIT ✓  (enter payout manually)"
-            )
-        else:
-            summary.append(
-                f"  {display_type:<16}  {display_horses}  "
-                f"→ MISS ✗  -${dollar}"
-            )
-
-    return summary
-
-
-# ---------------------------------------------------------------------------
 # PUBLIC API — FUNCTION 1: grade_race
 # ---------------------------------------------------------------------------
 
@@ -405,13 +269,6 @@ def grade_race(
         summary       = []
 
         if not rows:
-            # Still grade any exotic bets logged for this race even if no
-            # horse_race_analyses rows exist (e.g. user logged exotic manually)
-            exotic_summary = _grade_exotic_bets(cur, track_upper, race_number, results_list)
-            if exotic_summary:
-                print(f"\n  [grader] Exotic bets graded for {track_upper} R{race_number}:")
-                for line in exotic_summary:
-                    print(line)
             # context manager handles commit + writeback on return
             msg = (
                 f"grade_race: 0 ungraded rows found for "
@@ -423,10 +280,8 @@ def grade_race(
                 "graded_count":  0,
                 "skipped_count": 0,
                 "bets_logged":   0,
-                "exotic_graded": len(exotic_summary),
                 "message":       msg,
                 "summary":       [],
-                "exotic_summary": exotic_summary,
             }
 
         for row in rows:
@@ -498,8 +353,6 @@ def grade_race(
                 )
                 bets_logged += 1
 
-        # ── Grade exotic box bets for this race ─────────────────────────────
-        exotic_summary = _grade_exotic_bets(cur, track_upper, race_number, results_list)
         # safe_write() context manager handles commit + writeback on exit
 
     print(f"\n  [grader] grade_race complete — "
@@ -508,17 +361,10 @@ def grade_race(
     for line in summary:
         print(line)
 
-    if exotic_summary:
-        print(f"\n  [grader] Exotic bets graded for {track_upper} R{race_number}:")
-        for line in exotic_summary:
-            print(line)
-
     return {
         "graded_count":  graded_count,
         "skipped_count": skipped_count,
         "bets_logged":   bets_logged,
-        "exotic_graded": len(exotic_summary),
-        "exotic_summary": exotic_summary,
         "summary":       summary,
     }
 
@@ -870,137 +716,6 @@ if __name__ == "__main__":
     print("TEST 3b — print_trainer_leaderboard(min_starts=1) → shows all rows")
     print("─" * 65)
     print_trainer_leaderboard(min_starts=1, db_path=tmp_db)
-
-    # ────────────────────────────────────────────────────────────────────
-    # TEST 4: Exotic bet grading
-    # ────────────────────────────────────────────────────────────────────
-    print("─" * 65)
-    print("TEST 4 — _grade_exotic_bets() via grade_race()")
-    print("─" * 65)
-
-    # Insert 2 test horses for a new race (KEE R6) — needed so grade_race
-    # finds something to grade and calls _grade_exotic_bets in normal path.
-    conn = _connect(tmp_db)
-    cur  = conn.cursor()
-
-    # Two horses for KEE R6
-    cur.execute(insert_sql, (
-        "04042026", "KEE", 6, "CLM", "8f", "D", "GEMSTONE GLORY", 3,
-        "Irad Ortiz Jr.", "Brad Cox", 4.0,
-        3,2,3,3,2,3,1,3,3,1,3, 27, 0.298, 0.856, 0.997, "WIN_BET",
-    ))
-    cur.execute(insert_sql, (
-        "04042026", "KEE", 6, "CLM", "8f", "D", "RAIL ROCKET", 1,
-        "John Velazquez", "Todd Pletcher", 6.0,
-        2,2,2,2,1,1,1,3,1,0,1, 16, 0.209, 0.722, 0.966, "NO_PLAY",
-    ))
-
-    # Insert 2 exotic bets into bets table for KEE R6
-    # Bet A: EXACTA_BOX GEMSTONE GLORY / RAIL ROCKET → should HIT (they finish 1-2)
-    cur.execute(
-        """
-        INSERT INTO bets
-            (game_date, sport, away_team, home_team,
-             bet_type, bet_selection, odds, units,
-             confidence, reasoning, logged_date,
-             result, profit_loss, notes)
-        VALUES (?, 'HORSE_RACING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            "2026-04-04", "KEE", "Race 6",
-            "EXACTA_BOX", "GEMSTONE GLORY / RAIL ROCKET",
-            "PARI", 0.04, 3, "Exacta box test",
-            datetime.now().isoformat(),
-            "PENDING", 0.0,
-            "EXACTA Box · KEE R6 · #3 GEMSTONE GLORY / #1 RAIL ROCKET · $2 box = $4",
-        ),
-    )
-
-    # Bet B: TRIFECTA_BOX wrong horses → should MISS
-    cur.execute(
-        """
-        INSERT INTO bets
-            (game_date, sport, away_team, home_team,
-             bet_type, bet_selection, odds, units,
-             confidence, reasoning, logged_date,
-             result, profit_loss, notes)
-        VALUES (?, 'HORSE_RACING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            "2026-04-04", "KEE", "Race 6",
-            "TRIFECTA_BOX", "PEAK AND FADE / LONG SHOT LOUIE / MUDDY WATERS",
-            "PARI", 0.12, 3, "Trifecta box test — wrong horses",
-            datetime.now().isoformat(),
-            "PENDING", 0.0,
-            "TRIFECTA Box · KEE R6 · #2 PEAK AND FADE / #4 LONG SHOT LOUIE / #5 MUDDY WATERS · $2 box = $12",
-        ),
-    )
-
-    conn.commit()
-    conn.close()
-    print(f"  [test] Inserted 2 test horses (KEE R6) and 2 exotic bets\n")
-
-    # Official results for KEE R6: GEMSTONE GLORY wins, RAIL ROCKET 2nd
-    r6_results = [
-        "GEMSTONE GLORY",    # 1st
-        "RAIL ROCKET",       # 2nd
-        "PEAK AND FADE",     # 3rd
-        "MUDDY WATERS",      # 4th
-        "LONG SHOT LOUIE",   # 5th
-    ]
-
-    grade_result_6 = grade_race(
-        track_code   = "KEE",
-        race_date    = "20260404",
-        race_number  = 6,
-        results_list = r6_results,
-        db_path      = tmp_db,
-    )
-
-    print(f"\n  grade_race R6 returned:")
-    print(f"    graded_count  = {grade_result_6['graded_count']}")
-    print(f"    exotic_graded = {grade_result_6['exotic_graded']}")
-
-    # Verify exotic bet DB state
-    conn = _connect(tmp_db)
-    cur  = conn.cursor()
-    cur.execute(
-        """
-        SELECT bet_type, result, profit_loss, notes
-        FROM bets
-        WHERE away_team='KEE' AND home_team='Race 6'
-          AND bet_type IN ('EXACTA_BOX', 'TRIFECTA_BOX')
-        ORDER BY bet_type
-        """
-    )
-    exotic_rows_check = cur.fetchall()
-    conn.close()
-
-    print(f"\n  Exotic bets DB state after grading:")
-    print(f"  {'Type':<16}  {'Result':<7}  {'P/L':>6}  Notes (truncated)")
-    print("  " + "─" * 65)
-    for r in exotic_rows_check:
-        notes_preview = (r["notes"] or "")[:60] + ("…" if len(r["notes"] or "") > 60 else "")
-        print(
-            f"  {r['bet_type']:<16}  {r['result'] or '?':<7}  "
-            f"{r['profit_loss'] or 0:>+5.2f}u  {notes_preview}"
-        )
-
-    # Assertions
-    exacta_row   = next((r for r in exotic_rows_check if r["bet_type"] == "EXACTA_BOX"),   None)
-    trifecta_row = next((r for r in exotic_rows_check if r["bet_type"] == "TRIFECTA_BOX"), None)
-
-    assert exacta_row   is not None,           "FAIL: EXACTA_BOX bet not found in DB"
-    assert trifecta_row is not None,           "FAIL: TRIFECTA_BOX bet not found in DB"
-    assert exacta_row["result"]   == "WIN",    f"FAIL: EXACTA_BOX expected WIN, got {exacta_row['result']}"
-    assert trifecta_row["result"] == "LOSS",   f"FAIL: TRIFECTA_BOX expected LOSS, got {trifecta_row['result']}"
-    assert "BOX HIT" in (exacta_row["notes"] or ""), "FAIL: EXACTA_BOX notes missing 'BOX HIT'"
-    assert grade_result_6["exotic_graded"] == 2, f"FAIL: expected 2 exotic bets graded, got {grade_result_6['exotic_graded']}"
-
-    print(f"\n  ✓ EXACTA_BOX → WIN (BOX HIT note appended)")
-    print(f"  ✓ TRIFECTA_BOX → LOSS (wrong horses)")
-    print(f"  ✓ exotic_graded = {grade_result_6['exotic_graded']}")
-    print(f"\n  All exotic grading assertions PASS\n")
 
     # ── Clean up ──────────────────────────────────────────────────────────
     try:

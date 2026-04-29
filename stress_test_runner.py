@@ -5,13 +5,13 @@ All bets tagged STRESS_TEST in notes for clean cleanup.
 
 Phases:
   1. Car Wash all races in available DRF files
-  2. Apply exotic bet selection rules → log to DB
+  2. Apply straight bet selection rules → log to DB
   3. Attempt auto-grade from results; mark PENDING where unavailable
   4. Print full P&L report
   5. Verify real bets untouched
 """
 
-import sys, sqlite3, json, shutil
+import sys, sqlite3, shutil
 from datetime import datetime, date
 from pathlib import Path
 
@@ -65,7 +65,7 @@ def run_car_wash():
     """
     Returns list of race_result dicts:
       { track, race_number, horses (raw), scored, sim_results,
-        recommendation, exotic_picks, top_horse, bets_to_log }
+        recommendation, top_horse, bets_to_log }
     """
     all_results = []
 
@@ -105,7 +105,6 @@ def run_car_wash():
             rec = generate_recommendation(sim_results)
             recommendation = rec["recommendation"]
             confidence     = rec["confidence"]
-            exotic_picks   = rec.get("exotic_picks", {})
             reasoning      = rec.get("reasoning", "")
 
             # Top horse (highest win_pct)
@@ -128,7 +127,6 @@ def run_car_wash():
                 "sim_results":    sim_results,
                 "recommendation": recommendation,
                 "confidence":     confidence,
-                "exotic_picks":   exotic_picks,
                 "reasoning":      reasoning,
                 "top_horse":      top,
                 "field_size":     len(horses),
@@ -139,33 +137,27 @@ def run_car_wash():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PHASE 1b — Apply exotic bet selection rules
+# PHASE 1b — Apply straight bet selection rules
 # ─────────────────────────────────────────────────────────────────────────────
-def select_exotic_bets(all_results):
+def select_bets(all_results):
     """
-    Apply EDGE exotic bet rules to the simulation results.
+    Apply EDGE straight-bet rules to the simulation results.
     Adds 'bets_to_log' list to each race_result in-place.
-    Returns the modified list + a list of HIGH-conf races for superfecta.
+    Returns the modified list.
     """
-    ACTIONABLE = {"WIN_BET", "EXACTA_BOX", "TRIFECTA_KEY"}
-    high_conf_for_sf = []   # (composite_score, race_result) for top-2 superfecta candidates
+    ACTIONABLE = {"WIN_BET"}
 
     for rr in all_results:
         bets = []
         sim    = rr["sim_results"]
         rec    = rr["recommendation"]
-        conf   = rr["confidence"]
         top    = rr["top_horse"]
-        n      = rr["field_size"]
-        track  = rr["track"]
-        rnum   = rr["race_number"]
 
         if not sim or top is None:
             rr["bets_to_log"] = bets
             continue
 
         top_score  = top["composite_score"]
-        top_win    = top["win_pct"]
         top_flag   = top["value_flag"]
 
         # ── WIN BET — always log if recommendation is WIN_BET ────────────
@@ -179,59 +171,7 @@ def select_exotic_bets(all_results):
                 "extra_note": f"Score:{top_score} | {top_flag}",
             })
 
-        # ── EXACTA BOX — tightest races where a box makes sense ──────────
-        # Rule: WIN_BET or EXACTA_BOX rec, top-2 both STRONG_EV/MARGINAL_EV,
-        #       win% gap between #1 and #2 < 8%
-        if rec in {"WIN_BET", "EXACTA_BOX"} and len(sim) >= 2:
-            second     = sim[1]
-            gap        = top_win - second["win_pct"]
-            both_ev    = (top_flag in {"STRONG_EV", "MARGINAL_EV"} and
-                          second["value_flag"] in {"STRONG_EV", "MARGINAL_EV"})
-            if both_ev and gap < 0.08:
-                bets.append({
-                    "bet_type":  "EXACTA_BOX",
-                    "horses":    [top["horse_name"], second["horse_name"]],
-                    "posts":     [top["post_position"], second["post_position"]],
-                    "units":     0.04,
-                    "line":      str(top["morning_line"]),
-                    "extra_note": f"Score:{top_score} | Gap:{gap*100:.1f}% | {top_flag}/{second['value_flag']}",
-                })
-
-        # ── TRIFECTA BOX — dominant top horse, top-3 all viable ──────────
-        # Rule: WIN_BET or GEM, composite >= 18, top-3 all win_pct > 10%
-        if rec == "WIN_BET" and top_score >= 18 and len(sim) >= 3:
-            third = sim[2]
-            top3_viable = all(h["win_pct"] > 0.10 for h in sim[:3])
-            if top3_viable:
-                bets.append({
-                    "bet_type":  "TRIFECTA_BOX",
-                    "horses":    [h["horse_name"] for h in sim[:3]],
-                    "posts":     [h["post_position"] for h in sim[:3]],
-                    "units":     0.12,
-                    "line":      str(top["morning_line"]),
-                    "extra_note": f"Score:{top_score} | Top3win:{[round(h['win_pct']*100,1) for h in sim[:3]]}",
-                })
-
-        # ── SUPERFECTA — track best HIGH confidence candidates ────────────
-        # Rule: confidence==HIGH, composite >= 20, field >= 6
-        if conf == "HIGH" and top_score >= 20 and n >= 6:
-            high_conf_for_sf.append((top_score, rr))
-
         rr["bets_to_log"] = bets
-
-    # ── Apply SUPERFECTA to top 2 qualifying races only ──────────────────
-    high_conf_for_sf.sort(key=lambda x: x[0], reverse=True)
-    for _, rr in high_conf_for_sf[:2]:
-        sim = rr["sim_results"]
-        top = rr["top_horse"]
-        rr["bets_to_log"].append({
-            "bet_type":  "SUPERFECTA_BOX",
-            "horses":    [h["horse_name"] for h in sim[:4]],
-            "posts":     [h["post_position"] for h in sim[:4]],
-            "units":     0.48,
-            "line":      str(top["morning_line"]),
-            "extra_note": f"Score:{top['composite_score']} | TOP-2-HIGH-CONF",
-        })
 
     return all_results
 
@@ -415,7 +355,7 @@ def print_pnl_report():
 
     print()
     print("BREAKDOWN BY BET TYPE:")
-    for btype in ["WIN", "EXACTA_BOX", "TRIFECTA_BOX", "SUPERFECTA_BOX"]:
+    for btype in ["WIN"]:
         c.execute("""
             SELECT COUNT(*),
                    SUM(CASE WHEN result='WIN' THEN 1 ELSE 0 END),
@@ -467,11 +407,11 @@ if __name__ == "__main__":
     all_results = run_car_wash()
     print(f"\n  Phase 1 complete. {len(all_results)} races processed.")
 
-    # ── PHASE 1b: Select exotics ─────────────────────────────────────────────
-    print("\n\n═══ PHASE 1b: EXOTIC BET SELECTION ═══")
-    all_results = select_exotic_bets(all_results)
+    # ── PHASE 1b: Select straight bets ───────────────────────────────────────
+    print("\n\n═══ PHASE 1b: STRAIGHT BET SELECTION ═══")
+    all_results = select_bets(all_results)
     total_bets = sum(len(rr.get("bets_to_log", [])) for rr in all_results)
-    print(f"  Exotic selection complete. {total_bets} total bets queued across all races.")
+    print(f"  Bet selection complete. {total_bets} total bets queued across all races.")
 
     # ── PHASE 2: Log to DB ───────────────────────────────────────────────────
     print("\n\n═══ PHASE 2: LOGGING BETS TO DB ═══")
