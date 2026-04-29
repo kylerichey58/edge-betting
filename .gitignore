@@ -1,4 +1,22 @@
+# Environment / secrets
 .env
-sports_betting.db
+API Key V3.txt
+
+# Database files (production + all backups + journals)
+*.db
+*.db-journal
+
+# Python
 __pycache__/
+*.pyc
+
+# Archive / staging
 _archive/
+EDGE - Betting intellegence system/
+
+# Large reference data
+*.pdf
+*.zip
+2023 PPs/
+2023 Result Charts/
+horse_racing_data/

@@ -10,16 +10,35 @@ reliable workflow is:
 
   1. Log into brisnet.com manually in your browser.
   2. Download the PP Single File (.drf) for the race card you want.
-     Brisnet delivers a ZIP file: {TRACK}{MMDD}n.zip  e.g.  GPX0409n.zip
-  3. Drop the ZIP into horse_racing_data/   — OR —   leave it in Downloads/.
-     This script auto-extracts *n.zip files from both locations.
+     Navigate to: DATA FILES → PP Data Files (single) → click today's icon.
+     Confirmed download URL (while logged in):
+       https://www.brisnet.com/product/download/{YYYY-MM-DD}/DRS/USA/TB/{TRACK}/D/0/
+     Brisnet delivers a ZIP file: {TRACK}{MMDD}k.zip  e.g.  PEN0408k.zip
+
+     ZIP SUFFIX KEY — these look identical inside (.DRF) but are completely different:
+       *k.zip = PP Single File (CORRECT FORMAT — 1,400+ fields/horse, what the parser needs)
+       *n.zip = Entries/conditions format (DO NOT PARSE — 24 fields/race, no horse data)
+
+  3. Leave the ZIP in Downloads/ — auto_move_downloads() handles the rest automatically.
+     Every Trainer Scout Refresh moves *k.zip files to horse_racing_data/, extracts
+     the DRF, and deletes the ZIP. No manual steps needed.
   4. Run the Car Wash:
        python edge_server.py   (then use Trainer Scout tab in the platform)
 
 BRISNET FILE NAMING CONVENTION
 -------------------------------
-  ZIP file:  {TRACK}{MMDD}n.zip      e.g.  GPX0409n.zip, KEE0407n.zip
-  DRF inside: {TRACK}{MMDD}.DRF     e.g.  GPX0409.DRF, KEE0407.DRF
+  PP Single File — CORRECT FORMAT (what the parser expects):
+    ZIP file:   {TRACK}{MMDD}k.zip    e.g.  PEN0408k.zip, KEE0408k.zip
+    DRF inside: {TRACK}{MMDD}.DRF    e.g.  PEN0408.DRF, KEE0408.DRF
+    Download:   https://www.brisnet.com/product/download/{YYYY-MM-DD}/DRS/USA/TB/{TRACK}/D/0/
+    Content:    One row per horse, 1,400+ comma-separated fields
+
+  Entries format — DO NOT PARSE (race conditions only, no horse data):
+    ZIP file:   {TRACK}{MMDD}n.zip    e.g.  PEN0408n.zip
+    DRF inside: {TRACK}{MMDD}.DRF    e.g.  PEN0408.DRF
+    Content:    One row per race, 24 fields — NOT horse-level data
+
+  Both ZIPs produce a .DRF extension inside — only the ZIP suffix (k vs n) tells them apart.
   No underscore. No year. All-caps track code and extension.
 
 fetch_race_card() auto-extracts ZIPs from Downloads/ then searches
@@ -96,7 +115,13 @@ LOGIN_FIELDS    = {
 PP_DOWNLOAD_URL  = f"{BASE_URL}/cgi-bin/getpp.cgi"
 ETD_DOWNLOAD_URL = f"{BASE_URL}/cgi-bin/getetd.cgi"
 
-# Query param names for the download requests
+# PP Data Files (single) — confirmed direct download URL (authenticated session required).
+# Navigate to this URL while logged into brisnet.com to trigger the ZIP download.
+# {date} = YYYY-MM-DD, {track} = 2-3 letter code, /D/ = day racing, /0/ = all races.
+# Product code DRS = PP Data Files (single). ZIP delivered: {TRACK}{MMDD}k.zip
+PP_DOWNLOAD_URL_PATTERN = f"{BASE_URL}/product/download/{{date}}/DRS/USA/TB/{{track}}/D/0/"
+
+# Query param names for the legacy cgi-bin download requests (session-based fallback)
 DOWNLOAD_PARAMS = {
     "track_param": "trk",    # e.g., trk=CD
     "date_param":  "dt",     # e.g., dt=040426  (MMDDYY)
@@ -162,8 +187,9 @@ def extract_brisnet_zip(zip_path: "str | Path") -> list:
     """
     Extract all .DRF files from a Brisnet ZIP file into horse_racing_data/.
 
-    Brisnet ZIP naming: {TRACK}{MMDD}n.zip   e.g.  GPX0409n.zip
-    DRF inside:         {TRACK}{MMDD}.DRF    e.g.  GPX0409.DRF
+    Brisnet PP ZIP naming: {TRACK}{MMDD}k.zip   e.g.  PEN0408k.zip
+    DRF inside:            {TRACK}{MMDD}.DRF    e.g.  PEN0408.DRF
+    (*n.zip = entries format — do not pass to this function)
 
     - Normalises extracted filenames to ALL-CAPS (e.g. gpx0409.drf → GPX0409.DRF)
     - Skips extraction if the .DRF already exists in DATA_DIR
@@ -214,36 +240,100 @@ def extract_brisnet_zip(zip_path: "str | Path") -> list:
     return extracted
 
 
-def _auto_extract_downloads() -> None:
+def auto_move_downloads() -> list:
     """
-    Scan the user's Downloads folder for Brisnet ZIP files (*n.zip) and
-    auto-extract any .DRF files not already present in horse_racing_data/.
+    Scan the user's Downloads folder for Brisnet PP Single File ZIPs (*k.zip),
+    move each one to horse_racing_data/, extract the .DRF, then delete the ZIP.
 
-    Brisnet ZIP naming convention:  {TRACK}{MMDD}n.zip  e.g. GPX0409n.zip
-    Only files ending in 'n.zip' (lowercase 'n' before .zip) are matched.
-    Silent no-op if Downloads/ doesn't exist or contains no matching ZIPs.
+    ZIP SUFFIX KEY — both produce a .DRF extension inside but are completely different:
+      *k.zip = PP Single File (CORRECT FORMAT — processed here)
+      *n.zip = Entries/conditions format (DO NOT PARSE — ignored here)
+
+    Confirmed Brisnet PP download URL (navigate while logged in to trigger):
+      https://www.brisnet.com/product/download/{YYYY-MM-DD}/DRS/USA/TB/{TRACK}/D/0/
+
+    Called automatically on every GET /horse/tracks (Trainer Scout Refresh button):
+      1. Scan ~/Downloads/ for *k.zip files
+      2. Move each ZIP to horse_racing_data/
+      3. Extract .DRF (and companion .DR2/.DR3/.DR4 if present)
+      4. Delete the ZIP after successful extraction
+      5. Print a summary line per file processed
+
+    Returns
+    -------
+    list[str]
+        Track codes successfully moved and extracted (e.g. ['PEN', 'MVR']).
+        Empty list if no new *k.zip files were found.
     """
     downloads = Path.home() / "Downloads"
+    moved_tracks = []
+
     if not downloads.exists():
-        return
+        return moved_tracks
 
-    # *n.zip pattern — the 'n' suffix is Brisnet's naming for their downloads
-    zips = list(downloads.glob("*n.zip"))
+    # *k.zip only — PP Single File format. *n.zip = entries, DO NOT PARSE.
+    zips = sorted(
+        downloads.glob("*k.zip"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     if not zips:
-        return
+        return moved_tracks
 
-    # Existing DRF uppercase names — avoid re-extraction
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     existing_names = {p.name.upper() for p in _find_drfs()}
 
-    for zip_path in zips:
-        # Infer expected DRF name: GPX0409n.zip → GPX0409.DRF
-        stem = zip_path.stem  # e.g. 'GPX0409n'
-        if stem.endswith("n"):
-            expected_drf = stem[:-1].upper() + ".DRF"
-            if expected_drf in existing_names:
-                continue  # already extracted
-        # Extract — will skip individual files that already exist
-        extract_brisnet_zip(zip_path)
+    for zip_src in zips:
+        stem = zip_src.stem.upper()   # e.g. 'PEN0408K'
+        # Strip trailing 'K' to infer expected DRF: PEN0408K → PEN0408.DRF
+        expected_drf = (stem[:-1] if stem.endswith("K") else stem) + ".DRF"
+
+        if expected_drf in existing_names:
+            print(f"[fetcher] Already extracted: {expected_drf} — skipping {zip_src.name}")
+            continue
+
+        # Move ZIP from Downloads/ to horse_racing_data/
+        zip_dest = DATA_DIR / zip_src.name
+        try:
+            shutil.move(str(zip_src), str(zip_dest))
+            print(f"[fetcher] Moved: {zip_src.name} → horse_racing_data/")
+        except Exception as e:
+            print(f"[fetcher] Move failed for {zip_src.name}: {e}")
+            continue
+
+        # Extract .DRF (and .DR2/.DR3/.DR4) from the moved ZIP
+        extracted = extract_brisnet_zip(zip_dest)
+
+        # Delete the ZIP after successful extraction
+        try:
+            zip_dest.unlink(missing_ok=True)
+        except Exception as e:
+            print(f"[fetcher] Could not delete ZIP {zip_dest.name}: {e}")
+
+        if extracted:
+            track_code, _ = _parse_drf_filename(extracted[0])
+            # Count races in the DRF for the summary line
+            try:
+                from horse_racing_parser import parse_race_file as _prf
+                race_count = len(_prf(str(extracted[0])))
+            except Exception:
+                race_count = "?"
+            print(
+                f"[fetcher] Moved and extracted: {zip_src.name} → horse_racing_data/  "
+                f"({race_count} races, {track_code} track)"
+            )
+            moved_tracks.append(track_code)
+            existing_names.add(expected_drf)  # prevent duplicate processing in same run
+
+    return moved_tracks
+
+
+def _auto_extract_downloads() -> None:
+    """
+    Legacy helper — calls auto_move_downloads() for backwards compatibility.
+    New code should call auto_move_downloads() directly.
+    """
+    auto_move_downloads()
 
 
 def _load_credentials():
@@ -404,13 +494,15 @@ def fetch_race_card(track_code: str, race_date: str = None) -> "str | None":
     """
     Locate a local DRF file for the given track (and optionally date).
 
-    Automatically scans Downloads/ for Brisnet ZIPs (*n.zip) and extracts
+    Automatically scans Downloads/ for Brisnet PP ZIPs (*k.zip) and extracts
     them into horse_racing_data/ before searching.
+    (*k.zip = PP Single File, CORRECT FORMAT. *n.zip = entries format, ignored.)
 
     FILE NAMING CONVENTION
     ----------------------
-    Brisnet delivers ZIPs:   {TRACK}{MMDD}n.zip   e.g.  KEE0407n.zip
-    Extracted DRF inside:    {TRACK}{MMDD}.DRF    e.g.  KEE0407.DRF
+    Brisnet PP ZIPs:     {TRACK}{MMDD}k.zip   e.g.  PEN0408k.zip  (*k = PP Single File)
+    Extracted DRF inside: {TRACK}{MMDD}.DRF   e.g.  PEN0408.DRF
+    (*n.zip = entries format — DO NOT PARSE)
 
     FILE SEARCH PRIORITY
     --------------------
@@ -440,8 +532,8 @@ def fetch_race_card(track_code: str, race_date: str = None) -> "str | None":
         race_date = _date.today().strftime("%Y%m%d")
     race_date = race_date.strip()
 
-    # Auto-extract any Brisnet ZIPs from Downloads/ before searching
-    _auto_extract_downloads()
+    # Auto-move and extract any Brisnet PP ZIPs (*k.zip) from Downloads/ before searching
+    auto_move_downloads()
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -482,9 +574,10 @@ def fetch_race_card(track_code: str, race_date: str = None) -> "str | None":
     # ── No file found ─────────────────────────────────────────────────
     print(
         f"[fetcher] No DRF file found for {track_upper} in horse_racing_data/.\n"
-        f"  Download today's PP Single File from brisnet.com — Brisnet delivers a\n"
-        f"  ZIP file named  {track_upper}MMDDn.zip  (e.g. {track_upper}0407n.zip).\n"
-        f"  Drop the ZIP into horse_racing_data/  or  Downloads/  then retry."
+        f"  Download today's PP Single File from brisnet.com:\n"
+        f"  DATA FILES → PP Data Files (single) → click today's icon for {track_upper}.\n"
+        f"  Brisnet delivers a ZIP named {track_upper}MMDDk.zip (e.g. {track_upper}0408k.zip).\n"
+        f"  Leave the ZIP in Downloads/ — Trainer Scout Refresh auto-moves it."
     )
     return None
 
@@ -541,8 +634,8 @@ def get_available_tracks() -> list:
     Return a list of track dicts for the UI dropdown, de-duplicated by
     track code (most-recently-modified DRF wins for each track).
 
-    Runs auto-extract from Downloads/ first so freshly downloaded ZIPs
-    appear without a manual refresh.
+    Runs auto_move_downloads() first so freshly downloaded *k.zip PP files
+    are moved, extracted, and ready without any manual steps.
 
     Each dict:
         {
@@ -553,7 +646,7 @@ def get_available_tracks() -> list:
 
     Returns empty list if no DRF files are present.
     """
-    _auto_extract_downloads()
+    auto_move_downloads()
     drfs = _find_drfs()  # sorted most-recent-first
 
     seen   = set()
@@ -618,9 +711,13 @@ if __name__ == "__main__":
     print(f"Downloads scan : {Path.home() / 'Downloads'}")
     print()
 
-    # ── Auto-extract any ZIPs from Downloads ─────────────────────────
-    print("Scanning Downloads/ for Brisnet ZIPs (*n.zip)...")
-    _auto_extract_downloads()
+    # ── Auto-move any PP ZIPs from Downloads ─────────────────────────
+    print("Scanning Downloads/ for Brisnet PP ZIPs (*k.zip)...")
+    moved = auto_move_downloads()
+    if moved:
+        print(f"  Moved and extracted: {moved}")
+    else:
+        print("  No new *k.zip files found in Downloads/")
 
     # ── List all available DRF files ─────────────────────────────────
     drfs = list_available_drfs()
@@ -648,9 +745,10 @@ if __name__ == "__main__":
 
     print()
     print("Brisnet file naming convention:")
-    print("  ZIP:  {TRACK}{MMDD}n.zip   e.g.  KEE0407n.zip")
-    print("  DRF:  {TRACK}{MMDD}.DRF    e.g.  KEE0407.DRF")
-    print(f"  Drop ZIPs in: {DATA_DIR}  or  {Path.home() / 'Downloads'}")
+    print("  PP ZIP:  {TRACK}{MMDD}k.zip   e.g.  PEN0408k.zip  (*k = PP Single File)")
+    print("  DRF:     {TRACK}{MMDD}.DRF    e.g.  PEN0408.DRF")
+    print("  *n.zip = entries format — DO NOT PARSE")
+    print(f"  Leave *k.zip in Downloads/ — auto_move_downloads() handles the rest")
     print()
     print("Checkpoint 4 self-test: import check")
     print("  python -c \"import brisnet_fetcher; print('OK')\"")

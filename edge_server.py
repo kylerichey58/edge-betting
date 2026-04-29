@@ -67,14 +67,18 @@ def health():
 def horse_tracks():
     """
     Return available tracks from local DRF files.
-    Auto-scans Downloads/ for *n.zip files before searching.
+
+    Called every time the Trainer Scout Refresh (↺) button is clicked.
+    Calls auto_move_downloads() FIRST — moves any *k.zip PP Single File ZIPs
+    from Downloads/ to horse_racing_data/, extracts them, and deletes the ZIP.
+    (*k.zip = PP Single File format. *n.zip = entries format — ignored.)
 
     Response JSON:
         {
           "ok": true,
           "tracks": [
-            { "value": "KEE", "label": "KEE — 04/07", "mmdd": "0407" },
-            { "value": "GP",  "label": "GP — 04/09",  "mmdd": "0409" },
+            { "value": "PEN", "label": "PEN — 04/08", "mmdd": "0408" },
+            { "value": "MVR", "label": "MVR — 04/08", "mmdd": "0408" },
             ...
           ]
         }
@@ -82,7 +86,8 @@ def horse_tracks():
     Returns empty tracks list if no DRF files are present.
     """
     try:
-        from brisnet_fetcher import get_available_tracks
+        from brisnet_fetcher import get_available_tracks, auto_move_downloads
+        auto_move_downloads()   # move + extract + delete any *k.zip in Downloads/
         tracks = get_available_tracks()
         return jsonify({"ok": True, "tracks": tracks})
     except Exception as e:
