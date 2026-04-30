@@ -20,3 +20,22 @@ EDGE - Betting intellegence system/
 2023 PPs/
 2023 Result Charts/
 horse_racing_data/
+
+# Session handoff docs (kept locally for reference, not version-controlled)
+EDGE_Handoff_*.docx
+EDGE_Handoff_*.md
+EDGE_HorseRacing_Handoff_*.docx
+EDGE_Intelligence_Brief_*.docx
+EDGE_MasterHandoff_*.docx
+EDGE_MasterRecap_*.docx
+EDGE_PostReform_Handoff_*.md
+EDGE_Reform_Handoff_*.md
+EDGE_SessionRecap_*.docx
+EDGE_TomorrowPlan_*.docx
+EDGE_TrainerScout_BuildRef_*.docx
+ARM2026_*.md
+ARM2026_*.csv
+co work*.md
+
+# Scratch / triage area
+_scratch/
