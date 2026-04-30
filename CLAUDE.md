@@ -62,6 +62,7 @@ C:\Users\kyler\Documents\Sportsbetting\
   CLAUDE.md                       — this file (operational reference)
   PHILOSOPHY.md                   — design philosophy (governing reference)
   PIPELINE_API.md                 — function signature reference
+  SANDBOX_CAPABILITY.md           — Cowork sandbox env reference (network/FS/git/DB capabilities)
   db_utils.py                     — safe_write() NTFS locking fix
   sports_betting.db               — SQLite database
   bet_tracker.py                  — bet logging (will be updated for bet_source field)
