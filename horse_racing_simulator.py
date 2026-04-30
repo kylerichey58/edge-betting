@@ -4,15 +4,15 @@ Monte Carlo simulation engine for horse racing.
 
 Workflow in the Car Wash pipeline:
     horse_racing_scorer.score_race()
-        → run_simulation()          ← this module
+        → simulate_race()           ← this module
         → generate_recommendation()  ← this module
         → print_car_wash_table()     ← this module
 
 Usage:
-    from horse_racing_simulator import run_simulation, generate_recommendation, print_car_wash_table
+    from horse_racing_simulator import simulate_race, generate_recommendation, print_car_wash_table
 
     scored   = horse_racing_scorer.score_race(horses)
-    results  = run_simulation(scored, n_trials=10000)
+    results  = simulate_race(scored, n_trials=10000)
     rec      = generate_recommendation(results)
     print_car_wash_table(results, rec)
 """
@@ -55,10 +55,10 @@ def _value_flag(win_pct: float, market_implied: float) -> str:
 
 
 # ---------------------------------------------------------------------------
-# run_simulation
+# simulate_race
 # ---------------------------------------------------------------------------
 
-def run_simulation(scored_horses: list, n_trials: int = DEFAULT_TRIALS) -> list:
+def simulate_race(scored_horses: list, n_trials: int = DEFAULT_TRIALS) -> list:
     """
     Run a Monte Carlo simulation over the scored horse field.
 
@@ -170,15 +170,20 @@ def generate_recommendation(simulation_results: list) -> dict:
     """
     Apply EDGE betting rules to simulation output and return a recommendation.
 
-    Priority order:
-    1. NO_PLAY  — top horse is M09 veto (is_no_play)
-    2. WIN_BET  — top win_pct ≥ 0.30, positive value, no veto
-    3. NO_PLAY  — field compressed, no value, or any other veto condition
+    Priority order (post-2026-04-30 reform):
+    1. WIN_BET  — top win_pct ≥ 0.30 and positive value
+    2. NO_PLAY  — field compressed, negative value, or insufficient edge
+
+    The engine no longer vetoes based on M09. The is_no_play flag
+    (derived from M09 in the scorer) is preserved in per-horse output and
+    surfaced as "M09!" in print_car_wash_table for the bettor's awareness.
+    Per PHILOSOPHY.md principle 1: the engine surfaces edges, the bettor
+    decides.
 
     Parameters
     ----------
     simulation_results : list[dict]
-        Output from run_simulation(), sorted by win_pct descending.
+        Output from simulate_race(), sorted by win_pct descending.
 
     Returns
     -------
@@ -199,32 +204,15 @@ def generate_recommendation(simulation_results: list) -> dict:
     top  = simulation_results[0]
     rest = simulation_results[1:]
 
-    def _fmt(horse):
-        return f"{horse['horse_name']} ({horse['morning_line']}-1)"
-
-    # ── Rule 1: M09 veto on top horse ────────────────────────────────────
-    if top["is_no_play"]:
-        return {
-            "recommendation":  "NO_PLAY",
-            "horses_involved": [top["horse_name"]],
-            "confidence":      "HIGH",
-            "reasoning": (
-                f"{top['horse_name']} carries M09 veto — model win% "
-                f"({top['win_pct']*100:.1f}%) below market implied "
-                f"({top['market_implied_pct']*100:.1f}%)."
-            ),
-        }
-
     top_win   = top["win_pct"]
     top_flag  = top["value_flag"]
     top_ml    = top["morning_line"]
     top_mkt   = top["market_implied_pct"] or 0
 
-    # ── Rule 2: WIN_BET ───────────────────────────────────────────────────
+    # ── Rule 1: WIN_BET ───────────────────────────────────────────────────
     if (
         top_win >= WIN_BET_MIN_WIN_PCT
         and top_flag in POSITIVE_FLAGS
-        and not top["is_no_play"]
     ):
         confidence = (
             "HIGH"   if top_flag == "STRONG_EV" and top_win >= 0.40 else
@@ -242,7 +230,7 @@ def generate_recommendation(simulation_results: list) -> dict:
             ),
         }
 
-    # ── Rule 3: NO_PLAY ───────────────────────────────────────────────────
+    # ── Rule 2: NO_PLAY ───────────────────────────────────────────────────
     if top_win < COMPRESSED_FIELD_MAX:
         reason = (
             f"Field compressed — top model win% {top_win*100:.1f}%, "
@@ -323,7 +311,7 @@ def print_car_wash_table(
         # Flags column
         flags = []
         if h.get("is_gem"):          flags.append("GEM")
-        if h.get("is_no_play"):      flags.append("NO-PLAY")
+        if h.get("is_no_play"):      flags.append("M09!")
         if h.get("is_bounce_risk"):  flags.append("BOUNCE")
         flag_str = " ".join(flags)
 
@@ -418,7 +406,7 @@ if __name__ == "__main__":
     ]
 
     # ── Run simulation ────────────────────────────────────────────────────
-    results = run_simulation(horses, n_trials=DEFAULT_TRIALS)
+    results = simulate_race(horses, n_trials=DEFAULT_TRIALS)
     rec     = generate_recommendation(results)
 
     # ── Print Car Wash table + recommendation ─────────────────────────────

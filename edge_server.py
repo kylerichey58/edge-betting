@@ -332,7 +332,7 @@ def horse_simulate():
         1. brisnet_fetcher.fetch_race_card() → .drf file path
         2. horse_racing_parser.parse_race()  → horse dicts
         3. horse_racing_scorer.score_race()  → scored dicts
-        4. horse_racing_simulator.run_simulation() → Win%/Place%/Show%
+        4. horse_racing_simulator.simulate_race() → Win%/Place%/Show%
         5. horse_racing_simulator.generate_recommendation() → recommendation
         6. Insert ungraded rows into horse_race_analyses
     """
@@ -344,7 +344,7 @@ def horse_simulate():
 
     try:
         from horse_racing_scorer    import score_race
-        from horse_racing_simulator import run_simulation, generate_recommendation
+        from horse_racing_simulator import simulate_race, generate_recommendation
 
         data_source = "demo"
         horses = []
@@ -389,7 +389,7 @@ def horse_simulate():
         scored        = score_race(horses, m05_overrides=m05_overrides)
 
         # ── Step 4–5: Simulate + Recommend ───────────────────────────────
-        sim_results = run_simulation(scored)
+        sim_results = simulate_race(scored)
         rec         = generate_recommendation(sim_results)
 
         # ── Step 6: Log to DB ─────────────────────────────────────────────

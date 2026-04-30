@@ -20,7 +20,7 @@ sys.path.insert(0, str(SPORTS_DIR))
 
 from horse_racing_parser  import parse_race_file
 from horse_racing_scorer  import score_race
-from horse_racing_simulator import run_simulation, generate_recommendation
+from horse_racing_simulator import simulate_race, generate_recommendation
 
 DB_PATH   = SPORTS_DIR / "sports_betting.db"          # Windows mount (read-only from sandbox)
 LOCAL_DB  = Path("/sessions/zen-happy-turing/sports_betting_local.db")  # sandbox copy for writes
@@ -99,7 +99,7 @@ def run_car_wash():
             scored = score_race(horses, m05_overrides=m05_overrides)
 
             # Simulate
-            sim_results = run_simulation(scored)
+            sim_results = simulate_race(scored)
 
             # Recommendation
             rec = generate_recommendation(sim_results)
