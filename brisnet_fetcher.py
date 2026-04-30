@@ -133,6 +133,7 @@ DOWNLOAD_PARAMS = {
 # ---------------------------------------------------------------------------
 SCRIPT_DIR       = Path(__file__).parent
 DATA_DIR         = SCRIPT_DIR / "horse_racing_data"
+CARDS_DIR        = DATA_DIR / "cards"   # NEW (2026-04-30): card downloads route here
 ENV_FILE         = SCRIPT_DIR / ".env"
 
 # ---------------------------------------------------------------------------
@@ -155,12 +156,15 @@ class BrisnetDownloadError(BrisnetError):
 
 def _find_drfs() -> list:
     """
-    Return all .DRF files in DATA_DIR (case-insensitive extension match),
+    Return all .DRF files in CARDS_DIR (case-insensitive extension match),
     sorted most-recently-modified first.
+
+    Searches cards/ only. Legacy DRFs in DATA_DIR root are stale data from
+    pre-2026-04-30 stress tests and are NOT visible to the engine.
     """
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    CARDS_DIR.mkdir(parents=True, exist_ok=True)
     found = [
-        p for p in DATA_DIR.iterdir()
+        p for p in CARDS_DIR.iterdir()
         if p.is_file() and p.suffix.upper() == ".DRF"
     ]
     return sorted(found, key=lambda p: p.stat().st_mtime, reverse=True)
@@ -198,7 +202,8 @@ def extract_brisnet_zip(zip_path: "str | Path") -> list:
     Returns list of Path objects for extracted .DRF files only.
     """
     zip_path = Path(zip_path)
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir  = zip_path.parent  # extract next to the zip (cards/ in normal flow)
+    out_dir.mkdir(parents=True, exist_ok=True)
     extracted = []
 
     if not zip_path.exists():
@@ -210,7 +215,7 @@ def extract_brisnet_zip(zip_path: "str | Path") -> list:
             for member in zf.namelist():
                 member_path = Path(member)
                 upper_name  = member_path.name.upper()
-                dest        = DATA_DIR / upper_name
+                dest        = out_dir / upper_name
 
                 # Extract all data files (.DRF, .DR2, .DR3, .DR4)
                 if member_path.suffix.upper() not in (".DRF", ".DR2", ".DR3", ".DR4"):
@@ -223,7 +228,7 @@ def extract_brisnet_zip(zip_path: "str | Path") -> list:
                     continue
 
                 # Write to a temp path then move (handles cross-device rename)
-                tmp = DATA_DIR / (upper_name + ".tmp")
+                tmp = out_dir / (upper_name + ".tmp")
                 with zf.open(member) as src, open(tmp, "wb") as dst:
                     dst.write(src.read())
                 shutil.move(str(tmp), str(dest))
@@ -265,7 +270,9 @@ def auto_move_downloads() -> list:
         Track codes successfully moved and extracted (e.g. ['PEN', 'MVR']).
         Empty list if no new *k.zip files were found.
     """
-    downloads = Path.home() / "Downloads"
+    # Source: DATA_DIR root. Chrome's default download dir is configured to land
+    # there as of 2026-04-30; auto_move_downloads then routes zips into cards/.
+    downloads = DATA_DIR
     moved_tracks = []
 
     if not downloads.exists():
@@ -281,6 +288,7 @@ def auto_move_downloads() -> list:
         return moved_tracks
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    CARDS_DIR.mkdir(parents=True, exist_ok=True)
     existing_names = {p.name.upper() for p in _find_drfs()}
 
     for zip_src in zips:
@@ -292,11 +300,11 @@ def auto_move_downloads() -> list:
             print(f"[fetcher] Already extracted: {expected_drf} — skipping {zip_src.name}")
             continue
 
-        # Move ZIP from Downloads/ to horse_racing_data/
-        zip_dest = DATA_DIR / zip_src.name
+        # Move ZIP from DATA_DIR root into cards/ subfolder (introduced 2026-04-30)
+        zip_dest = CARDS_DIR / zip_src.name
         try:
             shutil.move(str(zip_src), str(zip_dest))
-            print(f"[fetcher] Moved: {zip_src.name} → horse_racing_data/")
+            print(f"[fetcher] Moved: {zip_src.name} → horse_racing_data/cards/")
         except Exception as e:
             print(f"[fetcher] Move failed for {zip_src.name}: {e}")
             continue
@@ -319,7 +327,7 @@ def auto_move_downloads() -> list:
             except Exception:
                 race_count = "?"
             print(
-                f"[fetcher] Moved and extracted: {zip_src.name} → horse_racing_data/  "
+                f"[fetcher] Moved and extracted: {zip_src.name} → horse_racing_data/cards/  "
                 f"({race_count} races, {track_code} track)"
             )
             moved_tracks.append(track_code)
