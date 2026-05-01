@@ -740,32 +740,63 @@ def score_horse(horse_dict, field_horses, market_odds=None):
         market_odds = horse_dict.get("morning_line")
 
     # --- M05 Auto Pace Scenario ---
-    field_styles = [h.get('running_style', 'U') for h in field_horses]
-    e_count = field_styles.count('E')
-    p_count = field_styles.count('P')
-    if e_count >= 3:
+    # Vocabulary-aware classifier (Apr 30, 2026). Recognizes Brisnet's BRIS Run
+    # Style alphabet: E, E/P, P, S, NA. NA horses are omitted from M05 entirely
+    # (m05=None, m05_omitted=True) and contribute nothing to pace counts.
+    KNOWN_STYLES = {'E', 'E/P', 'P', 'S', 'NA'}
+    field_styles = [h.get('running_style', 'NA') for h in field_horses]
+    e_count  = field_styles.count('E')
+    ep_count = field_styles.count('E/P')
+    p_count  = field_styles.count('P')
+    s_count  = field_styles.count('S')
+    na_count = field_styles.count('NA')
+
+    # Vocabulary drift detection — anything outside KNOWN_STYLES is treated as NA.
+    recognized_total = e_count + ep_count + p_count + s_count + na_count
+    if recognized_total != len(field_styles):
+        unrecognized = sorted({c for c in field_styles if c not in KNOWN_STYLES})
+        import warnings
+        warnings.warn(
+            f"Unrecognized BRIS Run Style code(s): {unrecognized} — "
+            f"treating as NA (omit from pace counts and M05). "
+            f"Update KNOWN_STYLES if these are valid Brisnet codes.",
+            RuntimeWarning, stacklevel=2)
+
+    # Pace scenario classifier:
+    #   E/P contributes 0.5 weight to the HOT trigger (composite codes get
+    #   composite treatment). NA does not contribute to HOT or SLOW counts.
+    e_weight = e_count + 0.5 * ep_count
+    if e_weight >= 3.0:
         pace_scenario = 'HOT'
-    elif e_count == 0 and p_count <= 1:
+    elif e_count == 0 and ep_count <= 1 and p_count <= 1:
         pace_scenario = 'SLOW'
     else:
         pace_scenario = 'MIXED'
-    this_style = horse_dict.get('running_style', 'U')
-    if pace_scenario == 'HOT':
-        if this_style == 'E':
-            m05 = 0   # Speed duel — front-runner gets crushed
-        elif this_style == 'P':
-            m05 = 2   # Presser benefits from hot pace
-        else:
-            m05 = 3   # Closer's dream — hot pace sets it up perfectly
-    elif pace_scenario == 'SLOW':
-        if this_style == 'E':
-            m05 = 3   # Lone speed — unchallenged on the front end
-        elif this_style == 'P':
-            m05 = 2   # Presser still fine in slow pace
-        else:
-            m05 = 0   # Closer needs pace to close into — none here
-    else:  # MIXED
-        m05 = 1       # Neutral — no pace edge either way
+
+    # Per-horse M05 matrix.
+    #              E   E/P  P   S    NA
+    #   HOT        0   1    2   3    omit
+    #   MIXED      1   1    1   1    omit
+    #   SLOW      3    2    2   0    omit
+    M05_MATRIX = {
+        'HOT':   {'E': 0, 'E/P': 1, 'P': 2, 'S': 3},
+        'MIXED': {'E': 1, 'E/P': 1, 'P': 1, 'S': 1},
+        'SLOW':  {'E': 3, 'E/P': 2, 'P': 2, 'S': 0},
+    }
+
+    raw_style = horse_dict.get('running_style', 'NA')
+    this_style = raw_style if raw_style in KNOWN_STYLES else 'NA'
+
+    if this_style == 'NA':
+        m05 = None
+        m05_omitted = True
+    else:
+        m05 = M05_MATRIX[pace_scenario][this_style]
+        m05_omitted = False
+
+    # Arithmetic helper — omitted M05 contributes nothing to sums.
+    # Composite for an NA horse is the sum of 10 pillars (max 30, not 33).
+    m05_for_sum = 0 if m05 is None else m05
 
     # ── Score M01–M08 ────────────────────────────────────────────────────
     m01 = _m01(horse_dict)
@@ -777,7 +808,7 @@ def score_horse(horse_dict, field_horses, market_odds=None):
     m07 = _m07(horse_dict)
     m08 = _m08(horse_dict)
 
-    m01_m08_sum = m01 + m02 + m03 + m04 + m05 + m06 + m07 + m08
+    m01_m08_sum = m01 + m02 + m03 + m04 + m05_for_sum + m06 + m07 + m08
 
     # ── M09 — depends on full-field normalization ─────────────────────────
     m09 = _m09(horse_dict, field_horses, m01_m08_sum, market_odds)
@@ -786,7 +817,7 @@ def score_horse(horse_dict, field_horses, market_odds=None):
     m10 = _m10(horse_dict, m07)
     m11 = _m11(horse_dict)
 
-    composite = m01 + m02 + m03 + m04 + m05 + m06 + m07 + m08 + m09 + m10 + m11
+    composite = m01 + m02 + m03 + m04 + m05_for_sum + m06 + m07 + m08 + m09 + m10 + m11
 
     # ── Model win pct (for display) ───────────────────────────────────────
     field_partials = [_quick_partial(h, field_horses) for h in field_horses]
@@ -800,13 +831,15 @@ def score_horse(horse_dict, field_horses, market_odds=None):
         "m01": m01, "m02": m02, "m03": m03, "m04": m04,
         "m05": m05, "m06": m06, "m07": m07, "m08": m08,
         "m09": m09, "m10": m10, "m11": m11,
+        "m05_score":       m05,                # int 0-3 or None when omitted
+        "m05_omitted":     m05_omitted,        # True when running_style is NA
         "composite_score": composite,
         "model_win_pct":   model_win_pct,
         "is_bounce_risk":  m06 == 0,          # per spec: True when m06==0
         "is_no_play":      m09 == 0,           # AUTO NO-PLAY — M09 veto
         "is_gem":          composite >= GEM_THRESHOLD,
         "pace_scenario":   pace_scenario,
-        "running_style":   this_style,
+        "running_style":   raw_style,
     }
 
 

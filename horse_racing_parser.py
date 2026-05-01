@@ -65,6 +65,7 @@ F_FIRST_TIME_MED  = 68   # VERIFY : first-time medication flag (4 = first Lasix)
 # ── Summary metrics ──────────────────────────────────────────────────────────
 F_PRIME_POWER     = 250  # field 251: BRIS prime power rating ('111.59')  CONFIRMED
 F_DAYS_SINCE      = 223  # field 224: days since last race to today  CONFIRMED
+F_RUN_STYLE       = 209  # field 210: BRIS Run Style (E, E/P, P, S, NA) — confirmed via OPX0430 diagnostic Apr 30
 
 # ── Past performance parallel arrays (fields 256–635, index 0 = most recent) ─
 # Each group = 10 consecutive fields, one per past race (most recent first).
@@ -249,21 +250,18 @@ def _build_horse_dict(fields):
     }
 
     # --- M05 Pace Automation ---
+    # Brisnet's BRIS Run Style code at field 210 (idx 209) is the source of truth.
+    # Vocabulary: E, E/P, P, S, NA. Pass through verbatim — slash in 'E/P' is meaningful.
+    # NA means "Brisnet couldn't classify" and is honored as-is, not synthesized over.
+    running_style = _safe_str(fields, F_RUN_STYLE, default='NA').strip().upper()
+    horse['running_style'] = running_style
+
+    # Raw first-call beaten lengths preserved for downstream metrics (not used to
+    # synthesize running_style — that synthesis was removed Apr 30, 2026 after the
+    # diagnostic showed it produced ~99% S/U regardless of actual horse style).
     fc1 = _safe_int(fields, PP_FC_BEATEN_PP1)
     fc2 = _safe_int(fields, PP_FC_BEATEN_PP2)
     fc3 = _safe_int(fields, PP_FC_BEATEN_PP3)
-    valid = [x for x in [fc1, fc2, fc3] if x is not None]
-    if len(valid) >= 2:
-        avg_fc = sum(valid) / len(valid)
-        if avg_fc <= 2:
-            running_style = 'E'   # Early / front-runner
-        elif avg_fc <= 6:
-            running_style = 'P'   # Presser / stalker
-        else:
-            running_style = 'S'   # Closer / off-the-pace
-    else:
-        running_style = 'U'       # Unknown — first timer or missing data
-    horse['running_style'] = running_style
     horse['fc_beaten_pp1'] = fc1
     horse['fc_beaten_pp2'] = fc2
     horse['fc_beaten_pp3'] = fc3
