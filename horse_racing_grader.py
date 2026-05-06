@@ -25,6 +25,15 @@ from datetime import datetime, date
 from pathlib import Path
 from db_utils import safe_write, safe_read
 
+# Re-export running-arc profile API. Implementation lives in
+# horse_profile_logic.py so it can be imported and tested standalone.
+# grade_race() below calls update_horse_profiles() after writing
+# horse_race_calls rows (C1 trigger pattern).
+from horse_profile_logic import (
+    update_horse_profiles,
+    get_horse_full_profile,
+)
+
 # ---------------------------------------------------------------------------
 # PATHS & CONFIG
 # ---------------------------------------------------------------------------
@@ -90,6 +99,21 @@ def _yyyymmdd_to_brisnet(yyyymmdd: str) -> str:
         if int(s[:4]) >= 2000:
             return s[4:6] + s[6:8] + s[:4]   # → MMDDYYYY
     return s   # already MMDDYYYY or unknown format
+
+
+def _iso_date(date_str: str) -> str:
+    """Coerce YYYYMMDD or YYYY-MM-DD (or other) to ISO YYYY-MM-DD if possible.
+
+    Returns the input unchanged if format is unrecognized — caller should
+    surface the issue rather than silently corrupt the value.
+    """
+    s = str(date_str or "").strip()
+    if len(s) == 10 and s[4] == "-" and s[7] == "-":
+        return s  # already ISO
+    if len(s) == 8 and s.isdigit() and int(s[:4]) >= 2000:
+        # YYYYMMDD
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    return s
 
 
 def _trainer_last_name(trainer_full: str) -> str:
@@ -207,6 +231,7 @@ def grade_race(
     race_date:    str,
     race_number:  int,
     results_list: list,
+    horses_data:  list | None = None,
     db_path=None,
 ) -> dict:
     """
@@ -225,13 +250,27 @@ def grade_race(
     results_list : list[str]
         Horse names in finishing order (1st → last).
         Names must match horse_name values stored in horse_race_analyses.
+    horses_data : list[dict] | None
+        NEW (May 4, 2026). Full per-horse call-chart data — one dict per horse.
+        Each dict must use snake_case keys matching horse_race_calls columns:
+        horse_name, surface, distance, track_condition, pace_scenario,
+        post_position, start_position, pos_q1, beaten_lengths_q1,
+        pos_q2, beaten_lengths_q2, pos_q3, beaten_lengths_q3,
+        pos_str, beaten_lengths_str, finish_position, beaten_lengths_finish,
+        final_time_seconds, final_odds, medication_code, equipment_code,
+        weight_carried, jockey, trainer, start_descriptor, winning_manner,
+        field_size.
+        race_date / track / race_number / created_at are filled by this function.
+        If None, the new pipeline (horse_race_calls + horse_profile recompute)
+        is skipped — preserves backward compatibility with legacy callers.
     db_path : str | Path | None
         Override DB path (default: sports_betting.db in script directory).
 
     Returns
     -------
     dict
-        graded_count, skipped_count, bets_logged, summary lines per horse.
+        graded_count, skipped_count, bets_logged, calls_inserted,
+        profiles_updated, summary lines per horse.
     """
     brisnet_date = _yyyymmdd_to_brisnet(race_date)
     track_upper  = track_code.upper()
@@ -353,19 +392,89 @@ def grade_race(
                 )
                 bets_logged += 1
 
+        # ── NEW (May 4, 2026): write horse_race_calls rows ──────────────
+        calls_inserted = 0
+        horse_names_for_profile: list = []
+
+        if horses_data is not None:
+            iso_d   = _iso_date(race_date)
+            now_iso = datetime.now().isoformat()
+
+            for hd in horses_data:
+                hname = (hd.get("horse_name") or "").strip()
+                if not hname:
+                    summary.append("  SKIP  horses_data row missing horse_name")
+                    continue
+                cur.execute(
+                    """
+                    INSERT OR REPLACE INTO horse_race_calls (
+                        horse_name, track, race_date, race_number,
+                        surface, distance, track_condition, pace_scenario,
+                        post_position, start_position,
+                        pos_q1, beaten_lengths_q1,
+                        pos_q2, beaten_lengths_q2,
+                        pos_q3, beaten_lengths_q3,
+                        pos_str, beaten_lengths_str,
+                        finish_position, beaten_lengths_finish,
+                        final_time_seconds, final_odds,
+                        medication_code, equipment_code,
+                        weight_carried, jockey, trainer,
+                        start_descriptor, winning_manner,
+                        created_at, field_size
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        hname, track_upper, iso_d, int(race_number),
+                        hd.get("surface"), hd.get("distance"),
+                        hd.get("track_condition"), hd.get("pace_scenario"),
+                        hd.get("post_position"), hd.get("start_position"),
+                        hd.get("pos_q1"), hd.get("beaten_lengths_q1"),
+                        hd.get("pos_q2"), hd.get("beaten_lengths_q2"),
+                        hd.get("pos_q3"), hd.get("beaten_lengths_q3"),
+                        hd.get("pos_str"), hd.get("beaten_lengths_str"),
+                        hd.get("finish_position"), hd.get("beaten_lengths_finish"),
+                        hd.get("final_time_seconds"), hd.get("final_odds"),
+                        hd.get("medication_code"), hd.get("equipment_code"),
+                        hd.get("weight_carried"), hd.get("jockey"), hd.get("trainer"),
+                        hd.get("start_descriptor"), hd.get("winning_manner"),
+                        now_iso, hd.get("field_size"),
+                    ),
+                )
+                calls_inserted += 1
+                horse_names_for_profile.append(hname)
+        else:
+            print(
+                f"  [grader] WARNING: horses_data not supplied — skipping "
+                f"horse_race_calls write + profile update for "
+                f"{track_upper} R{race_number} {race_date}"
+            )
+
         # safe_write() context manager handles commit + writeback on exit
+
+    # ── Profile recompute runs OUTSIDE the safe_write block above so the
+    #    calls write commits before update_horse_profiles opens its own
+    #    safe_write context. Sequential, atomic per stage.
+    profiles_updated = 0
+    if horse_names_for_profile:
+        res = update_horse_profiles(horse_names=horse_names_for_profile, db_path=db_path)
+        profiles_updated = res.get("profiles_updated", 0)
 
     print(f"\n  [grader] grade_race complete — "
           f"{graded_count} graded, {skipped_count} skipped, "
-          f"{bets_logged} bets logged to bets table")
+          f"{bets_logged} bets logged, "
+          f"{calls_inserted} calls inserted, "
+          f"{profiles_updated} profiles updated")
     for line in summary:
         print(line)
 
     return {
-        "graded_count":  graded_count,
-        "skipped_count": skipped_count,
-        "bets_logged":   bets_logged,
-        "summary":       summary,
+        "graded_count":     graded_count,
+        "skipped_count":    skipped_count,
+        "bets_logged":      bets_logged,
+        "calls_inserted":   calls_inserted,
+        "profiles_updated": profiles_updated,
+        "summary":          summary,
     }
 
 
