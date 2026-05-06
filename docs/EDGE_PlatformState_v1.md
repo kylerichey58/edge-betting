@@ -20,22 +20,22 @@ Start-of-session ritual: *"Read EDGE_PlatformState_v1.md and confirm context."*
 - M05 fix in production: parser reads Brisnet field 209 directly with full vocab `{E, E/P, P, S, NA}`; scorer has E/P-aware pace classifier and NA-omit logic.
 - Brain tables populated: `horse_race_analyses` (3,992 rows from May 1–2), `trainer_situational_stats` (82,197), `jockey_stats` (1,135).
 - May 1 live run: 20 tracks, 187 races, 1,655 horses, 53 GEMs at 3.2% rate. Two-gate GEM definition validated.
-- Trainer Scout tab UI structure correct, fires the right `/horse/simulate` POST, renders the right response shape.
+- `/horse/simulate` retired. Trainer Scout button shows "being rebuilt" placeholder until Item 14 ships. `/health`, `/horse/tracks`, `/horse/grade` remain functional.
 
 ### Actively being worked on
-- **First task this session:** synthesize the May 6 handoffs into this brain doc, commit to `docs/EDGE_PlatformState_v1.md`. Then move to Phase 1.
-- After the brain doc lands, Phase 1.1 begins. First implementation step is **P1 fix (Item 1)** — but only after deciding whether `/horse/simulate` retires under the new vision (card_runner pre-computation + GET endpoints).
+- Next step: Phase 1.1 Item 2 — Build `TRACK_CODE_BRIDGE` dict. Single source of truth for Brisnet ↔ Equibase track-code translation. ~20 entries to start. Both `card_runner.py` and `card_grader.py` will reference it.
 
 ### What's broken
-- **P1** — `score_race(m05_overrides=...)` kwarg orphaned. Two callers crash on every request: `edge_server.py:389` and `stress_test_runner.py:99`. This is what makes Trainer Scout's Run Car Wash button return 500.
 - **P5** — Result-ingestion pipeline never run end-to-end. `parse_chart_pdf`, grader's `horses_data` branch, `horse_profile_logic` all exist; no production caller passes `horses_data` to `grade_race()`. `horse_race_calls = 0`, `horse_profile = 0`. Resolves with `card_grader.py`.
 - **Top half of dashboard is fictional.** Topbar live-stats, ticker, four stat cards, Recent Bets list, both charts — all read from a hardcoded 58-row basketball BETS array at `EDGE-Platform.html` L1245–1304. Nothing reads from `sports_betting.db`. Resolves with GET `/bets` + dashboard rewire (Item 17).
 - See full P-item ledger in Section 5.
 
-### Last session's accomplishments (May 6 audit + vision lock)
-- Completed Platform Audit Phases A–D.1 plus UI Audit (Phase E pre-work). Mapped every gap between current state and target state.
-- Locked all major architecture decisions with Kyle (folder structure, two-gate GEM location, WPS_ALL representation, `bet_source` auto-derive, Equibase as result source, `PIPELINE_API.md` retires).
-- Generated two bridge handoff docs (Claude-side and Cowork-side) — last snapshots before brain doc takes over.
+### Last session's accomplishments (2026-05-06 evening — Phase 1.1 Item 1 + cleanup)
+- Retired `/horse/simulate` route and `stress_test_runner.py` (commit `c4d9f9c`). P1, P2, P7 resolved by deletion. Item 6 folds into Item 3.
+- Retired basketball-era code (`ncaaw_scout.py`, `womens_basketball_analyzer.py`) and `results_fetcher.py` (commit `409e774`). ~2,300 lines of dead code cut across both commits.
+- Frontend placeholder for Trainer Scout "Run Car Wash" button — handler shows "being rebuilt" status, button stays clickable.
+- CLAUDE.md staleness on `stress_test_runner.py` references cleared (3 lines removed/rewritten).
+- Three deferred test files (`closer_sanity_check.py`, `cross_check_equibase_brisnet.py`, `test_horse_profile_self.py`) assessed and retained — all valid live coverage.
 
 ---
 
@@ -80,12 +80,12 @@ These do not get re-litigated. If a decision is locked here, it gets followed.
 Phase 1 = daily loop end-to-end. Phase 2 = visibility. Phase 3 = calibration & roadmap.
 
 ### Phase 1.1 — Daily loop infrastructure
-- [ ] **Item 1** — Fix `score_race(m05_overrides=)` callers (P1). Three lines at `edge_server.py:389` and `stress_test_runner.py:99`. **Decide first:** does `/horse/simulate` retire under the new vision (card_runner pre-computation)?
+- [x] **Item 1** — Fix `score_race(m05_overrides=)` callers (P1). Three lines at `edge_server.py:389` and `stress_test_runner.py:99`. **Decide first:** does `/horse/simulate` retire under the new vision (card_runner pre-computation)? — done 2026-05-06, commit `c4d9f9c` (resolved by deletion rather than fix).
 - [ ] **Item 2** — Build `TRACK_CODE_BRIDGE` dict. Single source of truth. ~20 entries. Both `card_runner.py` and `card_grader.py` reference it.
 - [ ] **Item 3** — Build `card_runner.py`. Walks `horse_racing_data/data/MMDDYY/`, runs parser → scorer → simulator per race, writes `horse_race_analyses` via `safe_write`. Replaces `stress_test_runner.py`.
 - [ ] **Item 4** — Add `CREATE TABLE` for `horse_race_calls` and `horse_profile` to `_ensure_horse_tables()` and `_scratch/db_recovery.py` (P6).
 - [ ] **Item 5** — Build `card_grader.py`. Walks `horse_racing_data/results/MMDDYY/`, calls `parse_chart_pdf`, `grade_race(horses_data=...)`, fires `update_trainer_stats` per horse and `update_horse_profiles` per race. Resolves P5.
-- [ ] **Item 6** — Make `edge_server._log_analyses` populate `confidence_tier` and `value_flag` (P2) and route through `safe_write` (P7).
+- Item 6 — Folded into Item 3 (2026-05-06, commit `c4d9f9c`). `_log_analyses` deleted with `/horse/simulate`; `card_runner.py` will write `horse_race_analyses` correctly via `safe_write` from the start.
 
 ### Phase 1.2 — Backend endpoints
 - [ ] **Item 7** — `GET /horse/cards` — list of dates with parsed data ready.
@@ -236,13 +236,13 @@ New endpoints to build:
 
 | ID | Severity | Description | Status |
 |---|---|---|---|
-| **P1** | Tier 0 | `score_race(m05_overrides=)` kwarg orphaned; two callers crash | **OPEN** — Item 1 |
-| **P2** | Tier 1 | `_log_analyses` doesn't write `confidence_tier` or `value_flag` | **OPEN** — Item 6 |
+| **P1** | Tier 0 | `score_race(m05_overrides=)` kwarg orphaned; two callers crash | RESOLVED by deletion 2026-05-06 (commit `c4d9f9c`) |
+| **P2** | Tier 1 | `_log_analyses` doesn't write `confidence_tier` or `value_flag` | RESOLVED by deletion 2026-05-06 (commit `c4d9f9c`); `card_runner.py` writes correctly from the start |
 | **P3** | Tier 1 | `is_gem` single-gate in production scorer (two-gate only in scratch) | **OPEN** — superseded by locked decision (gate moves to simulator) |
 | **P4** | Tier 1 | M09 doctrine inconsistency: scorer says veto, simulator says flag | **OPEN** — simulator wins per PHILOSOPHY P2; reconcile in code |
 | **P5** | Tier 0 | Result-ingestion pipeline never run end-to-end | **OPEN** — Item 5 |
 | **P6** | Tier 1 | Missing DDL for `horse_race_calls` and `horse_profile` | **OPEN** — Item 4 |
-| **P7** | Tier 1 | `edge_server` bypasses `safe_write` (race condition) | **OPEN** — Item 6 |
+| **P7** | Tier 1 | `edge_server` bypasses `safe_write` (race condition) | RESOLVED by deletion 2026-05-06 (commit `c4d9f9c`); `card_runner.py` will use `safe_write` from the start |
 | **P8** | Tier 2 | No UNIQUE constraint on `(track, date, race_number, horse_name)` | **OPEN** — duplicate risk on re-runs |
 | **P9** | Tier 1 | `PIPELINE_API.md` ~25% accurate | **SUPERSEDED** by locked decision (doc retires) |
 
@@ -252,12 +252,16 @@ The audit produced ~60 D-items numbered D1–D61 covering schema drift, dead cod
 Notable D-items already surfaced:
 - **D16** — Five different date conventions across DB. Working toward consolidation.
 - **D-archive** — `_archive/` (19 files) and `_scratch/` (46 entries) have zero code dependencies. Confirmed orphans.
+- **D-test-prod-db** — `tests/test_horse_profile_self.py` writes to production DB (`db_utils.safe_write`/`safe_read` resolve to `sports_betting.db`) rather than a scratch DB. Try/finally cleanup is correct and `TEST_HORSE_DELETE_ME` namespacing makes contamination obvious, but worth migrating to scratch-DB pattern (see `closer_sanity_check.py` for the pattern). Non-blocking; convenience cleanup. Discovered 2026-05-06.
 
 ---
 
 ## 6. Session log
 
-### 2026-05-06
+### 2026-05-06 (evening)
+Phase 1.1 Item 1 shipped: retired `/horse/simulate` and `stress_test_runner.py` (commit `c4d9f9c`); resolves P1, P2, P7 by deletion. Folded Item 6 into Item 3. Retired basketball-era code and `results_fetcher.py` in a follow-up commit (`409e774`). Three deferred tests assessed and retained as valid coverage. ~2,300 lines deleted total.
+
+### 2026-05-06 (audit + vision lock)
 Audit complete (Phases A through D.1). UI audit (Phase E pre-work) complete. Vision locked across all major decisions. Two bridge handoff docs generated (Claude-side, Cowork-side) — last snapshots before brain doc takes over.
 
 ### 2026-05-01
