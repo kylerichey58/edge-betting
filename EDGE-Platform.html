@@ -3341,76 +3341,18 @@ async function loadTrackOptions(userTriggered = false) {
 }
 
 // ── runHorseSimulation ───────────────────────────────────────────
+// PLACEHOLDER — /horse/simulate has been retired. Trainer Scout is
+// being rebuilt around card_runner.py (slate pre-computation) plus
+// new GET /horse/cards endpoints. This handler shows a status notice
+// in place of the old single-race fetch. Do not re-add the fetch
+// here; the replacement lives in the upcoming Trainer Scout redesign.
 async function runHorseSimulation() {
-  const trackCode    = document.getElementById('ts-track').value;
-  const raceNumber   = parseInt(document.getElementById('ts-race').value) || 1;
-  const paceScenario = parseInt(document.getElementById('ts-pace').value);
-
-  const runBtn = document.getElementById('ts-run-btn');
   const status = document.getElementById('ts-status');
-
-  runBtn.disabled = true;
-  runBtn.textContent = '⏳ Running Car Wash…';
-  status.style.display  = 'block';
-  status.style.color    = 'var(--text3)';
-  status.textContent    = `Connecting to EDGE server (${EDGE_SERVER})…`;
+  status.style.display = 'block';
+  status.style.color   = 'var(--text3)';
+  status.textContent   = 'Trainer Scout is being rebuilt — full slate view coming after card_runner ships. Stay tuned.';
   document.getElementById('ts-results').style.display = 'none';
   document.getElementById('ts-grade-section').style.display = 'none';
-
-  try {
-    const resp = await fetch(`${EDGE_SERVER}/horse/simulate`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        track_code:    trackCode,
-        race_number:   raceNumber,
-        pace_scenario: paceScenario,
-      }),
-    });
-
-    // ── HTTP 400: no DRF file — show clear, actionable download message ──
-    if (resp.status === 400) {
-      await resp.json().catch(() => ({}));   // consume body
-      runBtn.disabled    = false;
-      runBtn.textContent = '🏇 Run Car Wash';
-      status.style.display = 'block';
-      status.style.color   = '#e74c3c';
-      status.innerHTML =
-        `<strong>No DRF file found for ${trackCode}.</strong> `
-        + `Download today's PP Single File (.drf) from `
-        + `<a href="https://www.brisnet.com" target="_blank" style="color:#e74c3c;text-decoration:underline">brisnet.com</a>`
-        + ` and place it in `
-        + `<code style="font-family:var(--font-mono);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:3px">horse_racing_data/</code>`
-        + ` then click Run Car Wash again.`;
-      document.getElementById('ts-results').style.display = 'none';
-      return;
-    }
-
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    if (!data.ok) throw new Error(data.error || 'Server returned ok:false');
-
-    // Save state for Log/Grade
-    tsSimResults     = data.simulation_results;
-    tsRecommendation = data.recommendation;
-    tsTrackCode      = data.track_code;
-    tsRaceNumber     = data.race_number;
-    tsRaceDate       = data.race_date;
-
-    // Render
-    _renderCarWashTable(data.simulation_results, data.recommendation, data.data_source);
-
-    status.style.color = 'var(--green)';
-    status.textContent = `✓ Simulation complete — ${data.simulation_results.length} horses · source: ${data.data_source.toUpperCase()} · ${tsTrackCode} R${tsRaceNumber}`;
-    document.getElementById('ts-results').style.display = 'block';
-
-  } catch (err) {
-    status.style.color = '#e74c3c';
-    status.textContent = `✗ ${err.message} — Is edge_server.py running? (python edge_server.py in the SportsBetting folder)`;
-  } finally {
-    runBtn.disabled     = false;
-    runBtn.textContent  = '🏇 Run Car Wash';
-  }
 }
 
 // ── _renderCarWashTable ───────────────────────────────────────────

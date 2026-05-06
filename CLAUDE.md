@@ -68,7 +68,6 @@ C:\Users\kyler\Documents\Sportsbetting\
   bet_tracker.py                  — bet logging (will be updated for bet_source field)
   bet_analytics.py                — terminal analytics dashboard (will be updated for per-sport P&L)
   results_fetcher.py              — post-race result scraping + grading trigger
-  stress_test_runner.py           — full-card pipeline (to be refactored to card_runner.py)
   major_conference_analyzer.py    — basketball module
   ncaam_scout.py / ncaaw_scout.py
   womens_basketball_analyzer.py
@@ -198,7 +197,6 @@ C:\Users\kyler\Documents\Sportsbetting\
 | horse_racing_simulator.py | `simulate_race` (10,000 trials) |
 | horse_racing_grader.py | `grade_race`, `update_trainer_stats`, `get_leaderboard` |
 | results_fetcher.py | `build_results_url`, `scan_and_grade_all`, `fetch_import_results_file` |
-| stress_test_runner.py | Full-card pipeline (to be refactored to card_runner.py in next session) |
 | db_utils.py | `safe_write`, `safe_read`, `verify_db` |
 
 ---
@@ -206,7 +204,7 @@ C:\Users\kyler\Documents\Sportsbetting\
 ## Known Issues / On the Horizon
 
 ### Immediate (next sessions)
-- Refactor `stress_test_runner.py` → `card_runner.py` (writes to `horse_race_analyses` only, never to `bets`)
+- Build `card_runner.py` — pre-computes a full slate via parser → scorer → simulator; replaces the retired `stress_test_runner.py` (tracked as Item 3 in `docs/EDGE_PlatformState_v1.md`)
 - Add `bet_source` column population logic in `bet_tracker.py`
 - Update `bet_analytics.py` for per-sport P&L views
 - Formalize Horse Racing Car Wash v1.0 release (mark version, lock framework structure)
