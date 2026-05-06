@@ -112,6 +112,53 @@ If the platform is ever published or marketed externally, this is the date it ca
 
 ---
 
+## Post-position semantics (added 2026-05-06, parser ship)
+
+The platform persists two distinct fields for horse gate position:
+
+- `program_number` (string, supports coupled-entry markers like '1A')
+  — pre-scratch entry number, equals Brisnet's `post_position`,
+  used as the canonical join key between Equibase and Brisnet data.
+
+- `post_position` (integer)
+  — post-scratch gate position the horse actually broke from on race day.
+
+Both are real and useful; they measure different things. The engine should
+query whichever is appropriate for the question being asked. Brisnet PPs
+only know pre-scratch (so `program_number` is the canonical join for
+Brisnet data). Equibase charts know post-scratch (so `post_position` for
+actual-pace analysis on race day).
+
+Verified empirically across all 14 races of the Churchill May 2 2026 card:
+`Equibase.program_number == Brisnet.post_position` holds 140/140 horses
+that appear in both sources, while `Equibase.post_position == Brisnet.post_position`
+holds only 81/140 (the others differ by the count of scratched horses
+positioned ahead in the gate). This is by design, not a defect — both
+sources are correct in their domain.
+
+---
+
+## Pace scenario sourcing (added 2026-05-06, parser ship)
+
+The chart parser leaves `pace_scenario = None` on chart-derived rows.
+`pace_scenario` is populated by the scorer pre-race from BRIS run-style
+data (E / E/P / P / S / NA) — see `horse_racing_scorer.py` lines 742-784
+for the classification logic. That formulation consumes pre-race past-
+performance running styles, not chart-side fractional times.
+
+Chart-context pace classification (HOT / MIXED / SLOW based on actual
+fractional times relative to par) is a separate concept that we may add
+as a derived field later, but it is not the same thing as the BRIS-
+derived `pace_scenario` the engine currently uses.
+
+Until such time as a chart-context pace classifier is defined and
+agreed upon, the chart parser's `pace_scenario` field is intentionally
+None. The orchestrator (`parse_race`) sets it to None explicitly via a
+documented stub (`classify_pace_scenario`) so consumers know there's no
+chart-derived pace label to consult.
+
+---
+
 ## What Changes Over Time
 
 This document is not immutable. It can change. But changes are explicit:

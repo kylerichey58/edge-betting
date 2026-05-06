@@ -201,6 +201,33 @@ e27e734 Lock Brisnet download workflow + CTX→CT fix + exotic P&L cleanup order
 6. **Browser-tool capabilities have not been exercised.** Capability claims in the Browser Tooling section are inferred from tool names. Verification is part of #15.
 7. **No connector tooling probed.** This audit covered Python, sqlite, git, file system, and the Chrome MCP enumeration. MCP registry / connectors (Slack, Linear, Asana, etc.) were out of scope and may carry their own capabilities.
 8. **Bash file reads can lag or truncate after Edit operations.** Symptom observed 2026-04-30: after editing `CLAUDE.md` (240 lines, ~12 KB), bash `cat`, `wc -c`, and Python `open().read()` from inside the sandbox all returned a truncated 11,735-byte view ending mid-word, while the Read tool and PowerShell `Get-Content` (Kyle, from outside the sandbox) both showed the file intact. Implication: do not use bash to verify writes on this mount. Use the Read tool or ask Kyle to confirm via VS Code / PowerShell. Do not "repair" a file based on bash output alone — the apparent damage may not exist on disk.
+9. **Edit-tool modifications to existing files in `Sportsbetting/` are invisible to the bash sandbox.**
+   Deeper characterization of the same root cause as Limitation #8 — the issue is not truncation, it is caching of the pre-edit file content.
+
+   **Symptom (observed 2026-05-04):** after extending `horse_racing_grader.py` from 729 → 1043 lines via successive Edit tool calls, bash's view of the file remained a stale pre-edit snapshot capped at 715 lines and ending mid-word. The Read tool and host-side stat both confirmed the host filesystem had the full edited content; bash served stale virtiofs cache regardless of `sync`, `echo 3 > /proc/sys/vm/drop_caches`, or opening with `O_DIRECT`.
+
+   **What works:** Write-tool creation of brand-new files syncs to bash immediately. Bash-side writes (`cp`, shell redirection, Python `open(..., 'w')`) propagate back to the host AND invalidate bash's own cache for the destination path, so bash sees its own writes correctly.
+
+   **What fails:** Edit-tool partial modifications to existing files are never picked up by bash. Host writes do not invalidate the bash-side cache.
+
+   **Workaround pattern — full overwrite (verified 2026-05-04 in Prompt 2.5):** for non-trivial edits to an existing file, write the desired final content to a brand-new staging file via the Write tool (e.g. `target_cleaned.py`), then `cp staging_file target_file` via bash. The bash-driven copy propagates to the host AND refreshes bash's view of the destination. Used this pattern to apply the grader cleanup (1043 → 838 lines) cleanly with all 28 self-test assertions passing on the post-cp file.
+
+   **Workaround pattern — extract new logic (preferred when applicable):** instead of inline-editing the existing file, extract new logic into a brand-new module (which syncs cleanly), then re-export from the original module via `from new_module import …`. Used this pattern in Prompt 2 to ship `horse_profile_logic.py`.
+
+   **Workaround pattern — bash heredoc → /tmp → cp (default for parser build, validated 2026-05-05/06 in Phases 4-7):** for any non-trivial edit to a pre-existing file, the highest-reliability pattern is to write the desired content to `/tmp` via a heredoc and `cp` it to the target — both in the same `bash` invocation:
+
+   ```bash
+   cat > /tmp/file <<'EOF'
+   ...new content...
+   EOF
+   cp /tmp/file /sessions/.../mnt/Sportsbetting/file
+   ```
+
+   `/tmp` is pure Linux (no virtiofs translation) and the heredoc-then-cp happens inside one bash session, so there's no tool-boundary cache invalidation between the write and the copy. Used throughout the parser build (Phases 4 through 7B) on `horse_racing_pdf_parser_v2.py` (which grew from ~400 lines to ~1300 lines across many edits) without a single corruption recurrence. **The Edit tool also exhibits the cache issue, not just the Write tool** — observed in Phase 2 when an Edit-tool report-success was followed by a truncated/corrupted on-disk file. New files (paths that don't exist yet) generally Write cleanly, but pre-existing files should default to the heredoc-cp pattern.
+
+   **When this matters:** any task that requires editing an existing file in `Sportsbetting/` and then verifying the change via bash (test runs, import sanity checks). Refactors, in-place schema migrations on existing modules, and any code changes more substantive than a one-line Edit are affected. Does not affect new-file workflows.
+
+   **Alternative workaround:** close and reopen the Cowork session to flush the entire virtiofs cache — heavier-weight, loses session context, only worth it if many existing files need updating at once.
 
 ---
 
